@@ -1,12 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Search, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 import { getQuestionSets, getAllSessions, getAllResponses } from "@/lib/db";
 import { QuestionSet, ExamSession, QuestionResponse } from "@/types/gmat";
+
+type SectionFilter = "all" | "Quantitative" | "Verbal" | "Data Insights";
+type SortOption = "newest" | "oldest" | "name-az" | "name-za" | "questions-desc" | "questions-asc";
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", {
@@ -21,6 +33,9 @@ export default function DashboardPage() {
   const [sessions, setSessions] = useState<ExamSession[]>([]);
   const [responses, setResponses] = useState<QuestionResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sectionFilter, setSectionFilter] = useState<SectionFilter>("all");
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
 
   useEffect(() => {
     async function load() {
@@ -75,6 +90,142 @@ export default function DashboardPage() {
       total: s.total_count || 0,
     };
   }
+
+  const renderSetCard = (qs: QuestionSet, i: number) => {
+    const lastScore = getLastScore(qs.id);
+    return (
+      <Card
+        key={qs.id}
+        className="glass-card animate-slide-up"
+        style={{ animationDelay: `${i * 80}ms` }}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <CardTitle className="text-base font-semibold line-clamp-2">
+              {qs.name}
+            </CardTitle>
+            {lastScore && (
+              <Badge
+                variant={
+                  lastScore.correct / lastScore.total >= 0.7
+                    ? "default"
+                    : "destructive"
+                }
+                className="ml-2 shrink-0"
+              >
+                {lastScore.correct}/{lastScore.total}
+              </Badge>
+            )}
+          </div>
+          {qs.section && (
+            <p className="text-xs text-muted-foreground">
+              {qs.section}
+            </p>
+          )}
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2 mb-4 text-xs text-muted-foreground">
+            {qs.difficulty_range && (
+              <Badge
+                variant="outline"
+                className="border-blue-500/30 text-blue-400"
+              >
+                {qs.difficulty_range}
+              </Badge>
+            )}
+            <Badge variant="outline" className="border-slate-500/30">
+              {qs.total_questions} questions
+            </Badge>
+            <span className="opacity-60">
+              {formatDate(qs.created_at)}
+            </span>
+          </div>
+
+          <div className="flex gap-2">
+            <Link
+              href={`/exam/setup?setId=${qs.id}&mode=timed`}
+              className="flex-1"
+            >
+              <Button className="w-full bg-blue-600 hover:bg-blue-700 text-xs h-8">
+                ⏱ Timed
+              </Button>
+            </Link>
+            <Link
+              href={`/exam/setup?setId=${qs.id}&mode=practice`}
+              className="flex-1"
+            >
+              <Button
+                variant="outline"
+                className="w-full border-green-500/30 hover:bg-green-500/10 text-green-400 text-xs h-8"
+              >
+                📝 Practice
+              </Button>
+            </Link>
+            <Link
+              href={`/exam/setup?setId=${qs.id}&mode=review`}
+              className="flex-1"
+            >
+              <Button
+                variant="outline"
+                className="w-full border-purple-500/30 hover:bg-purple-500/10 text-purple-400 text-xs h-8"
+              >
+                👁 Review
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Filter and sort question sets
+  const filteredAndSortedSets = useMemo(() => {
+    let result = [...sets];
+
+    // Search: name, topics, section
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      result = result.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          (s.topics?.toLowerCase().includes(q) ?? false) ||
+          (s.section?.toLowerCase().includes(q) ?? false) ||
+          (s.difficulty_range?.toLowerCase().includes(q) ?? false) ||
+          (s.source_filename?.toLowerCase().includes(q) ?? false) ||
+          (s.target?.toLowerCase().includes(q) ?? false)
+      );
+    }
+
+    // Filter by section
+    if (sectionFilter !== "all") {
+      result = result.filter(
+        (s) =>
+          s.section?.toLowerCase().includes(sectionFilter.toLowerCase()) ?? false
+      );
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case "oldest":
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case "name-az":
+          return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+        case "name-za":
+          return b.name.localeCompare(a.name, undefined, { sensitivity: "base" });
+        case "questions-desc":
+          return b.total_questions - a.total_questions;
+        case "questions-asc":
+          return a.total_questions - b.total_questions;
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  }, [sets, searchQuery, sectionFilter, sortBy]);
 
   if (loading) {
     return (
@@ -210,9 +361,54 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Question Sets Grid */}
-      <div className="mb-4">
-        <h2 className="text-xl font-semibold mb-4">Question Sets</h2>
+      {/* Question Sets Section */}
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h2 className="text-xl font-semibold">Question Sets</h2>
+
+        {sets.length > 0 && (
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            {/* Search */}
+            <div className="relative flex-1 sm:w-56">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, topics, section…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 bg-slate-800/50 border-slate-700 h-9 text-sm"
+              />
+            </div>
+
+            {/* Filter by section */}
+            <Select value={sectionFilter} onValueChange={(v) => setSectionFilter(v as SectionFilter)}>
+              <SelectTrigger className="w-full sm:w-40 h-9 bg-slate-800/50 border-slate-700 text-sm">
+                <SlidersHorizontal className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
+                <SelectValue placeholder="Section" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All sections</SelectItem>
+                <SelectItem value="Quantitative">Quantitative</SelectItem>
+                <SelectItem value="Verbal">Verbal</SelectItem>
+                <SelectItem value="Data Insights">Data Insights</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Sort */}
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+              <SelectTrigger className="w-full sm:w-44 h-9 bg-slate-800/50 border-slate-700 text-sm">
+                <ArrowUpDown className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+                <SelectItem value="name-az">Name A → Z</SelectItem>
+                <SelectItem value="name-za">Name Z → A</SelectItem>
+                <SelectItem value="questions-desc">Most questions</SelectItem>
+                <SelectItem value="questions-asc">Fewest questions</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {sets.length === 0 ? (
@@ -231,94 +427,80 @@ export default function DashboardPage() {
             </Link>
           </CardContent>
         </Card>
+      ) : filteredAndSortedSets.length === 0 ? (
+        <Card className="glass-card border-dashed border-2 border-slate-600/50">
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground mb-2">No question sets match your search or filter.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchQuery("");
+                setSectionFilter("all");
+              }}
+            >
+              Clear filters
+            </Button>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sets.map((qs, i) => {
-            const lastScore = getLastScore(qs.id);
-            return (
-              <Card
-                key={qs.id}
-                className="glass-card animate-slide-up"
-                style={{ animationDelay: `${i * 80}ms` }}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-base font-semibold line-clamp-2">
-                      {qs.name}
-                    </CardTitle>
-                    {lastScore && (
-                      <Badge
-                        variant={
-                          lastScore.correct / lastScore.total >= 0.7
-                            ? "default"
-                            : "destructive"
-                        }
-                        className="ml-2 shrink-0"
-                      >
-                        {lastScore.correct}/{lastScore.total}
+        <div className="space-y-6">
+          {/* Group by section when filtered, or show flat list */}
+          {sectionFilter !== "all" ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Showing</span>
+                <Badge variant="outline" className="border-slate-600">
+                  {filteredAndSortedSets.length} set{filteredAndSortedSets.length !== 1 ? "s" : ""}
+                </Badge>
+                <span>in {sectionFilter}</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredAndSortedSets.map((qs, i) => renderSetCard(qs, i))}
+              </div>
+            </div>
+          ) : (
+            <>
+              {(() => {
+                const bySection = filteredAndSortedSets.reduce(
+                  (acc, s) => {
+                    const key = s.section?.trim() || "Other";
+                    if (!acc[key]) acc[key] = [];
+                    acc[key].push(s);
+                    return acc;
+                  },
+                  {} as Record<string, QuestionSet[]>
+                );
+                const sectionOrder = ["Quantitative", "Verbal", "Data Insights", "Other"];
+                const orderedSections = [
+                  ...sectionOrder.filter((k) => bySection[k]?.length),
+                  ...Object.keys(bySection).filter((k) => !sectionOrder.includes(k)),
+                ];
+                return orderedSections.map((section) => (
+                  <div key={section}>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-slate-500" />
+                      {section}
+                      <Badge variant="outline" className="text-xs font-normal border-slate-600">
+                        {bySection[section].length}
                       </Badge>
-                    )}
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {bySection[section].map((qs, i) => renderSetCard(qs, i))}
+                    </div>
                   </div>
-                  {qs.section && (
-                    <p className="text-xs text-muted-foreground">
-                      {qs.section}
-                    </p>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2 mb-4 text-xs text-muted-foreground">
-                    {qs.difficulty_range && (
-                      <Badge
-                        variant="outline"
-                        className="border-blue-500/30 text-blue-400"
-                      >
-                        {qs.difficulty_range}
-                      </Badge>
-                    )}
-                    <Badge variant="outline" className="border-slate-500/30">
-                      {qs.total_questions} questions
-                    </Badge>
-                    <span className="opacity-60">
-                      {formatDate(qs.created_at)}
-                    </span>
-                  </div>
+                ));
+              })()}
+            </>
+          )}
+        </div>
+      )}
 
-                  <div className="flex gap-2">
-                    <Link
-                      href={`/exam/setup?setId=${qs.id}&mode=timed`}
-                      className="flex-1"
-                    >
-                      <Button className="w-full bg-blue-600 hover:bg-blue-700 text-xs h-8">
-                        ⏱ Timed
-                      </Button>
-                    </Link>
-                    <Link
-                      href={`/exam/setup?setId=${qs.id}&mode=practice`}
-                      className="flex-1"
-                    >
-                      <Button
-                        variant="outline"
-                        className="w-full border-green-500/30 hover:bg-green-500/10 text-green-400 text-xs h-8"
-                      >
-                        📝 Practice
-                      </Button>
-                    </Link>
-                    <Link
-                      href={`/exam/setup?setId=${qs.id}&mode=review`}
-                      className="flex-1"
-                    >
-                      <Button
-                        variant="outline"
-                        className="w-full border-purple-500/30 hover:bg-purple-500/10 text-purple-400 text-xs h-8"
-                      >
-                        👁 Review
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+      {sets.length > 0 && filteredAndSortedSets.length > 0 && (
+        <div className="mt-4 text-xs text-muted-foreground">
+          {filteredAndSortedSets.length === sets.length
+            ? `Showing all ${sets.length} question sets`
+            : `Showing ${filteredAndSortedSets.length} of ${sets.length} question sets`}
         </div>
       )}
     </div>
