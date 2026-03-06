@@ -362,6 +362,60 @@ export default function ResultsPage({
                       <TableRow className="border-slate-800 bg-slate-900/30">
                         <TableCell colSpan={5} className="py-4">
                           <div className="space-y-4 max-w-4xl">
+                            {/* Question stem */}
+                            <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                              {q.question_type === "Data Sufficiency" && (q.statement1 || q.statement2) ? (
+                                <div className="space-y-3">
+                                  <p className="text-sm leading-relaxed">{q.stem}</p>
+                                  {q.statement1 && (
+                                    <div className="pl-4 border-l-2 border-blue-500/40">
+                                      <span className="text-blue-400 font-semibold text-sm">(1) </span>
+                                      <span className="text-sm leading-relaxed">{q.statement1}</span>
+                                    </div>
+                                  )}
+                                  {q.statement2 && (
+                                    <div className="pl-4 border-l-2 border-blue-500/40">
+                                      <span className="text-blue-400 font-semibold text-sm">(2) </span>
+                                      <span className="text-sm leading-relaxed">{q.statement2}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{q.stem}</p>
+                              )}
+                            </div>
+
+                            {/* Answer choices */}
+                            <div className="space-y-1.5">
+                              {(["A", "B", "C", "D", "E"] as const)
+                                .map((letter) => ({ letter, text: q[`choice_${letter.toLowerCase()}` as `choice_a`] }))
+                                .filter((c) => c.text)
+                                .map(({ letter, text }) => {
+                                  const isCorrect = q.correct_answer === letter;
+                                  const isSelected = r.selected_answer === letter;
+                                  const isWrongSelected = isSelected && !isCorrect;
+                                  return (
+                                    <div
+                                      key={letter}
+                                      className={`flex items-start gap-3 px-3 py-2 rounded-lg text-sm border ${
+                                        isCorrect
+                                          ? "border-green-500/50 bg-green-500/10"
+                                          : isWrongSelected
+                                          ? "border-red-500/50 bg-red-500/10"
+                                          : "border-slate-700/30 bg-slate-800/20"
+                                      }`}
+                                    >
+                                      <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
+                                        isCorrect ? "bg-green-600 text-white" : isWrongSelected ? "bg-red-600 text-white" : "bg-slate-700 text-slate-400"
+                                      }`}>{letter}</span>
+                                      <span className={`leading-relaxed ${isCorrect ? "text-green-200" : isWrongSelected ? "text-red-200" : "text-slate-300"}`}>{text}</span>
+                                      {isCorrect && <span className="ml-auto text-green-400 flex-shrink-0">✓</span>}
+                                      {isWrongSelected && <span className="ml-auto text-red-400 flex-shrink-0">✗</span>}
+                                    </div>
+                                  );
+                                })}
+                            </div>
+
                             {/* Feature 4: Passage Map */}
                             {r.passage_map &&
                               Object.keys(r.passage_map).length > 0 && (
