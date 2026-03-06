@@ -30,13 +30,12 @@ import {
   ErrorCategory,
   SimulationExam,
   SimulationSection,
+  QuestionType,
+  SectionType,
 } from "@/types/gmat";
-import { SECTION_LABELS, SectionType } from "@/store/simulationStore";
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -53,11 +52,36 @@ import {
   ReferenceLine,
   Legend,
 } from "recharts";
+type AnalyticsSectionFilter = "all" | SectionType;
+
+const QUESTION_TYPE_TO_SECTION: Record<QuestionType, SectionType> = {
+  "Data Sufficiency": "quant",
+  "Problem Solving": "quant",
+  "Reading Comprehension": "verbal",
+  "Critical Reasoning": "verbal",
+  "Multi-Source Reasoning": "di",
+  "Table Analysis": "di",
+  "Graphics Interpretation": "di",
+  "Two-Part Analysis": "di",
+};
+
+function getSectionForQuestion(q?: Question): SectionType | null {
+  if (!q) return null;
+  return QUESTION_TYPE_TO_SECTION[q.question_type] ?? null;
+}
 
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+  });
+}
+function formatDateTime(d: string) {
+  return new Date(d).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 function formatTimeShort(s: number) {
@@ -76,6 +100,8 @@ export default function AnalyticsPage() {
   const [simExams, setSimExams] = useState<SimulationExam[]>([]);
   const [simSectionsMap, setSimSectionsMap] = useState<Record<string, SimulationSection[]>>({});
   const [showSectionTrends, setShowSectionTrends] = useState(false);
+  const [sectionFilter, setSectionFilter] =
+    useState<AnalyticsSectionFilter>("all");
 
   useEffect(() => {
     async function load() {
@@ -130,54 +156,106 @@ export default function AnalyticsPage() {
     [sessions],
   );
 
+  const completedSessionIds = useMemo(() => new Set(completed.map((s) => s.id)), [completed]);
+  const analysisResponses = useMemo(
+    () =>
+      responses.filter(
+        (r) => completedSessionIds.has(r.session_id) && r.is_correct !== null,
+      ),
+    [responses, completedSessionIds],
+  );
+
+  const filteredResponses = useMemo(
+    () => {
+      if (sectionFilter === "all") return analysisResponses;
+      return analysisResponses.filter((r) => {
+        const q = qMap.get(r.question_id);
+        if (!q) return false;
+        const sec = getSectionForQuestion(q);
+        return sec === sectionFilter;
+      });
+    },
+    [analysisResponses, qMap, sectionFilter],
+  );
+
+  const responsesBySession = useMemo(() => {
+    const map = new Map<string, QuestionResponse[]>();
+    filteredResponses.forEach((r) => {
+      const arr = map.get(r.session_id) || [];
+      arr.push(r);
+      map.set(r.session_id, arr);
+    });
+    return map;
+  }, [filteredResponses]);
+
+  const filteredSessions = useMemo(
+    () => {
+      if (sectionFilter === "all") return completed;
+      const ids = new Set(Array.from(responsesBySession.keys()));
+      return completed.filter((s) => ids.has(s.id));
+    },
+    [completed, responsesBySession, sectionFilter],
+  );
+
   // ─── Accuracy Over Time ──────────────────────────────────
   const accuracyOverTime = useMemo(
     () =>
-      completed
+      filteredSessions
+        .slice()
         .sort(
           (a, b) =>
             new Date(a.started_at).getTime() - new Date(b.started_at).getTime(),
         )
-        .map((s, i) => ({
-          session: i + 1,
-          date: formatDate(s.started_at),
-          accuracy: s.total_count
-            ? Math.round(((s.correct_count || 0) / s.total_count) * 100)
-            : 0,
-        })),
-    [completed],
+        .map((s, i) => {
+          const sResp = responsesBySession.get(s.id) || [];
+          const total = sResp.length;
+          const correct = sResp.filter((r) => r.is_correct).length;
+          const accuracy = total
+            ? Math.round((correct / total) * 100)
+            : 0;
+          return {
+            session: i + 1,
+            date: formatDate(s.started_at),
+            label: formatDateTime(s.started_at),
+            accuracy,
+          };
+        }),
+    [filteredSessions, responsesBySession],
   );
 
   // ─── Avg Time Over Time ──────────────────────────────────
-  const timeOverTime = useMemo(() => {
-    const sessionResponses = new Map<string, QuestionResponse[]>();
-    responses.forEach((r) => {
-      const arr = sessionResponses.get(r.session_id) || [];
-      arr.push(r);
-      sessionResponses.set(r.session_id, arr);
-    });
-
-    return completed
-      .sort(
-        (a, b) =>
-          new Date(a.started_at).getTime() - new Date(b.started_at).getTime(),
-      )
-      .map((s, i) => {
-        const sResp = sessionResponses.get(s.id) || [];
-        const avg = sResp.length
-          ? Math.round(
-              sResp.reduce((sum, r) => sum + r.time_spent_seconds, 0) /
-                sResp.length,
-            )
-          : 0;
-        return { session: i + 1, date: formatDate(s.started_at), avgTime: avg };
-      });
-  }, [completed, responses]);
+  const timeOverTime = useMemo(
+    () =>
+      filteredSessions
+        .slice()
+        .sort(
+          (a, b) =>
+            new Date(a.started_at).getTime() - new Date(b.started_at).getTime(),
+        )
+        .map((s, i) => {
+          const sResp = responsesBySession.get(s.id) || [];
+          const avg = sResp.length
+            ? Math.round(
+                sResp.reduce(
+                  (sum, r) => sum + (r.time_spent_seconds || 0),
+                  0,
+                ) / sResp.length,
+              )
+            : 0;
+          return {
+            session: i + 1,
+            date: formatDate(s.started_at),
+            label: formatDateTime(s.started_at),
+            avgTime: avg,
+          };
+        }),
+    [filteredSessions, responsesBySession],
+  );
 
   // ─── Accuracy by Question Type (Radar) ───────────────────
   const radarData = useMemo(() => {
     const typeStats: Record<string, { correct: number; total: number }> = {};
-    responses.forEach((r) => {
+    filteredResponses.forEach((r) => {
       const q = qMap.get(r.question_id);
       if (!q) return;
       const type = q.topic || q.question_type;
@@ -191,11 +269,11 @@ export default function AnalyticsPage() {
       accuracy: data.total ? Math.round((data.correct / data.total) * 100) : 0,
       count: data.total,
     }));
-  }, [responses, qMap]);
+  }, [filteredResponses, qMap]);
 
   // ─── Answer Change Analysis ──────────────────────────────
   const changeAnalysis = useMemo(() => {
-    const changed = responses.filter(
+    const changed = filteredResponses.filter(
       (r) => r.answer_changes && r.answer_changes.length > 0,
     );
     const helped = changed.filter((r) => r.is_correct).length;
@@ -203,17 +281,17 @@ export default function AnalyticsPage() {
       total: changed.length,
       helped,
       hurt: changed.length - helped,
-      rate: responses.length
-        ? Math.round((changed.length / responses.length) * 100)
+      rate: filteredResponses.length
+        ? Math.round((changed.length / filteredResponses.length) * 100)
         : 0,
     };
-  }, [responses]);
+  }, [filteredResponses]);
 
   // ─── Flag Analysis ───────────────────────────────────────
   const flagAnalysis = useMemo(() => {
-    const flagged = responses.filter((r) => r.flagged_for_review);
+    const flagged = filteredResponses.filter((r) => r.flagged_for_review);
     const flaggedCorrect = flagged.filter((r) => r.is_correct).length;
-    const unflagged = responses.filter((r) => !r.flagged_for_review);
+    const unflagged = filteredResponses.filter((r) => !r.flagged_for_review);
     const unflaggedCorrect = unflagged.filter((r) => r.is_correct).length;
     return {
       flaggedCount: flagged.length,
@@ -224,16 +302,16 @@ export default function AnalyticsPage() {
         ? Math.round((unflaggedCorrect / unflagged.length) * 100)
         : 0,
     };
-  }, [responses]);
+  }, [filteredResponses]);
 
   // ─── Time vs Accuracy Scatter ────────────────────────────
   const scatterData = useMemo(
     () =>
-      responses.map((r) => ({
+      filteredResponses.map((r) => ({
         time: r.time_spent_seconds,
         correct: r.is_correct ? 1 : 0,
       })),
-    [responses],
+    [filteredResponses],
   );
 
   // ─── Simulation Score Data ────────────────────────────────
@@ -279,8 +357,8 @@ export default function AnalyticsPage() {
       { sessions: Set<string>; count: number; lastSeen: string }
     > = {};
 
-    responses.forEach((r) => {
-      if (r.is_correct || !r.error_category) return;
+    filteredResponses.forEach((r) => {
+      if (r.is_correct !== false || !r.error_category) return;
       const q = qMap.get(r.question_id);
       if (!q) return;
       const topic = q.topic || q.question_type;
@@ -326,12 +404,12 @@ export default function AnalyticsPage() {
     });
 
     return result.sort((a, b) => b.count - a.count);
-  }, [responses, qMap, sessions, simSessionIds]);
+  }, [filteredResponses, qMap, sessions, simSessionIds]);
 
   // ─── Weakness Areas ──────────────────────────────────────
   const weaknesses = useMemo(() => {
     const typeStats: Record<string, { correct: number; total: number }> = {};
-    responses.forEach((r) => {
+    filteredResponses.forEach((r) => {
       const q = qMap.get(r.question_id);
       if (!q) return;
       const type = q.topic || q.question_type;
@@ -350,7 +428,7 @@ export default function AnalyticsPage() {
       }))
       .sort((a, b) => a.accuracy - b.accuracy)
       .slice(0, 3);
-  }, [responses, qMap]);
+  }, [filteredResponses, qMap]);
 
   if (loading) {
     return (
@@ -369,7 +447,16 @@ export default function AnalyticsPage() {
       borderRadius: 8,
     },
     labelStyle: { color: "#94a3b8" },
+    itemStyle: { color: "#e2e8f0" },
   };
+
+  const SECTION_FILTER_OPTIONS: { id: AnalyticsSectionFilter; label: string }[] =
+    [
+      { id: "all", label: "All" },
+      { id: "quant", label: "Quant" },
+      { id: "verbal", label: "Verbal" },
+      { id: "di", label: "DI" },
+    ];
 
   return (
     <div className="min-h-screen p-6 max-w-7xl mx-auto">
@@ -385,8 +472,26 @@ export default function AnalyticsPage() {
           Performance Analytics
         </h1>
         <p className="text-muted-foreground mt-1">
-          {completed.length} sessions · {responses.length} responses analyzed
+          {filteredSessions.length} sessions · {filteredResponses.length} responses analyzed
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">Section:</span>
+          {SECTION_FILTER_OPTIONS.map((opt) => (
+            <Button
+              key={opt.id}
+              variant={sectionFilter === opt.id ? "default" : "outline"}
+              size="sm"
+              className={`h-7 px-3 text-xs ${
+                sectionFilter === opt.id
+                  ? "bg-slate-800 text-blue-400 border-blue-500/60 hover:bg-slate-700"
+                  : "border-slate-700 text-slate-300 hover:bg-slate-800"
+              }`}
+              onClick={() => setSectionFilter(opt.id)}
+            >
+              {opt.label}
+            </Button>
+          ))}
+        </div>
       </header>
 
       {completed.length === 0 ? (
@@ -439,6 +544,7 @@ export default function AnalyticsPage() {
                     <Tooltip
                       contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
                       labelStyle={{ color: "#94a3b8" }}
+                      itemStyle={{ color: "#e2e8f0" }}
                       formatter={(v, name) => {
                         if (name === "total") return [`${v}`, "Total Score"];
                         if (name === "quant") return [`${v}`, "Quant (60-90)"];
@@ -522,8 +628,9 @@ export default function AnalyticsPage() {
                   <LineChart data={accuracyOverTime}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                     <XAxis
-                      dataKey="date"
+                      dataKey="session"
                       tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      tickFormatter={(v) => `S${v}`}
                     />
                     <YAxis
                       domain={[0, 100]}
@@ -531,6 +638,7 @@ export default function AnalyticsPage() {
                     />
                     <Tooltip
                       {...tooltipStyle}
+                      labelFormatter={(_, payload) => payload?.[0]?.payload?.label ?? ""}
                       formatter={(v) => [`${v}%`, "Accuracy"]}
                     />
                     <Line
@@ -558,12 +666,14 @@ export default function AnalyticsPage() {
                   <LineChart data={timeOverTime}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                     <XAxis
-                      dataKey="date"
+                      dataKey="session"
                       tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      tickFormatter={(v) => `S${v}`}
                     />
                     <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} />
                     <Tooltip
                       {...tooltipStyle}
+                      labelFormatter={(_, payload) => payload?.[0]?.payload?.label ?? ""}
                       formatter={(v) => [`${v}s`, "Avg Time"]}
                     />
                     <Line
@@ -829,13 +939,18 @@ export default function AnalyticsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {completed.map((s) => {
+                  {filteredSessions.map((s) => {
                     const set = setMap.get(s.set_id);
-                    const acc = s.total_count
-                      ? Math.round(
-                          ((s.correct_count || 0) / s.total_count) * 100,
-                        )
+                    const sResp = responsesBySession.get(s.id) || [];
+                    const total = sResp.length;
+                    const correct = sResp.filter((r) => r.is_correct).length;
+                    const acc = total
+                      ? Math.round((correct / total) * 100)
                       : 0;
+                    const totalTime = sResp.reduce(
+                      (sum, r) => sum + (r.time_spent_seconds || 0),
+                      0,
+                    );
                     return (
                       <TableRow key={s.id} className="border-slate-800">
                         <TableCell className="text-muted-foreground">
@@ -851,7 +966,7 @@ export default function AnalyticsPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {s.correct_count}/{s.total_count}
+                          {total > 0 ? `${correct}/${total}` : "—"}
                         </TableCell>
                         <TableCell>
                           <span
@@ -867,8 +982,8 @@ export default function AnalyticsPage() {
                           </span>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {s.total_time_seconds
-                            ? formatTimeShort(s.total_time_seconds)
+                          {totalTime
+                            ? formatTimeShort(totalTime)
                             : "—"}
                         </TableCell>
                         <TableCell>
