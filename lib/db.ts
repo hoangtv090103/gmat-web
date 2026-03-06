@@ -33,7 +33,7 @@ function setLocal<T>(key: string, data: T[]): void {
 // ─── Question Sets ───────────────────────────────────────────
 
 export async function saveQuestionSet(
-  set: Omit<QuestionSet, 'id' | 'imported_at'>,
+  set: Omit<QuestionSet, 'id' | 'created_at'>,
   questions: Array<Omit<Question, 'id' | 'set_id' | 'created_at'>>
 ): Promise<{ setId: string; questionCount: number }> {
   const supabase = getSupabase();
@@ -63,7 +63,7 @@ export async function saveQuestionSet(
   const fullSet: QuestionSet = {
     ...set,
     id: setId,
-    imported_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
   };
 
   const fullQuestions: Question[] = questions.map((q) => ({
@@ -89,13 +89,13 @@ export async function getQuestionSets(): Promise<QuestionSet[]> {
     const { data, error } = await supabase
       .from('question_sets')
       .select('*')
-      .order('imported_at', { ascending: false });
+      .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
     return data || [];
   }
 
   return getLocal<QuestionSet>(STORAGE_KEYS.QUESTION_SETS).sort(
-    (a, b) => new Date(b.imported_at).getTime() - new Date(a.imported_at).getTime()
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 }
 

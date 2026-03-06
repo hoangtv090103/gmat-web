@@ -8,7 +8,7 @@ export interface QuestionSet {
   topics?: string;
   target?: string;
   total_questions: number;
-  imported_at: string;
+  created_at: string;
   source_filename?: string;
 }
 

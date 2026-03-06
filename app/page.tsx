@@ -271,7 +271,7 @@ export default function DashboardPage() {
                       {qs.total_questions} questions
                     </Badge>
                     <span className="opacity-60">
-                      {formatDate(qs.imported_at)}
+                      {formatDate(qs.created_at)}
                     </span>
                   </div>
 
