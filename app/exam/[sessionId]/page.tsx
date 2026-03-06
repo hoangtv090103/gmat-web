@@ -476,13 +476,14 @@ export default function ExamPage({
     submitExam();
     // Persist data
     try {
+      // Use getState() to read fresh state after submitExam()/recordQuestionTime() ran
       const {
         sessionId: sid,
         questions: qs2,
         questionStates: qss,
         pendingEvents,
         mode: m,
-      } = store;
+      } = useExamStore.getState();
       if (!sid) return;
       const responses = qs2.map((q, i) => {
         const s = qss[i];
@@ -1013,8 +1014,8 @@ function QuestionPanel({
           })}
       </div>
 
-      {/* Confidence rating (practice/review — not simulation) */}
-      {mode !== "timed" && !isSimulation && qs?.selectedAnswer && (
+      {/* Confidence rating (all modes except simulation) */}
+      {!isSimulation && qs?.selectedAnswer && (
         <div className="flex items-center gap-3 pt-2">
           <span className="text-sm text-muted-foreground">Confidence:</span>
           {[1, 2, 3, 4, 5].map((r) => (

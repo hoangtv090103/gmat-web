@@ -301,10 +301,12 @@ export const useExamStore = create<ExamState>()(
             }
           : makeInitialQState(targetQ?.question_type || '', state.mode, true, now);
 
+        // Re-read questionStates after recordQuestionTime() has updated them
+        const freshQuestionStates = get().questionStates;
         set({
           currentIndex: index,
           questionStates: {
-            ...state.questionStates,
+            ...freshQuestionStates,
             [index]: updated,
           },
         });
