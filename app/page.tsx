@@ -36,6 +36,7 @@ import { FaIcon } from "@/components/ui/fa-icon";
 
 type SectionFilter = "all" | "Quantitative" | "Verbal" | "Data Insights";
 type SortOption = "newest" | "oldest" | "name-az" | "name-za" | "questions-desc" | "questions-asc";
+type TimeFilter = "all" | "today" | "yesterday" | "3d" | "7d" | "21d";
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", {
@@ -53,6 +54,7 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sectionFilter, setSectionFilter] = useState<SectionFilter>("all");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
+   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
 
   useEffect(() => {
     async function load() {
@@ -74,8 +76,59 @@ export default function DashboardPage() {
     load();
   }, []);
 
-  const totalSessions = sessions.length;
-  const completedSessions = sessions.filter((s) => s.completed_at);
+  const timeFilteredSessions = useMemo(() => {
+    if (timeFilter === "all") return sessions;
+    const now = new Date();
+    return sessions.filter((s) => {
+      const d = new Date(s.started_at);
+      if (Number.isNaN(d.getTime())) return false;
+      switch (timeFilter) {
+        case "today": {
+          return (
+            d.getFullYear() === now.getFullYear() &&
+            d.getMonth() === now.getMonth() &&
+            d.getDate() === now.getDate()
+          );
+        }
+        case "yesterday": {
+          const yesterday = new Date(now);
+          yesterday.setDate(now.getDate() - 1);
+          return (
+            d.getFullYear() === yesterday.getFullYear() &&
+            d.getMonth() === yesterday.getMonth() &&
+            d.getDate() === yesterday.getDate()
+          );
+        }
+        case "3d": {
+          const threeDaysAgo = now.getTime() - 3 * 24 * 60 * 60 * 1000;
+          return d.getTime() >= threeDaysAgo;
+        }
+        case "7d": {
+          const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+          return d.getTime() >= sevenDaysAgo;
+        }
+        case "21d": {
+          const twentyOneDaysAgo = now.getTime() - 21 * 24 * 60 * 60 * 1000;
+          return d.getTime() >= twentyOneDaysAgo;
+        }
+        default:
+          return true;
+      }
+    });
+  }, [sessions, timeFilter]);
+
+  const timeFilteredSessionIds = useMemo(
+    () => new Set(timeFilteredSessions.map((s) => s.id)),
+    [timeFilteredSessions],
+  );
+
+  const timeFilteredResponses = useMemo(
+    () => responses.filter((r) => timeFilteredSessionIds.has(r.session_id)),
+    [responses, timeFilteredSessionIds],
+  );
+
+  const totalSessions = timeFilteredSessions.length;
+  const completedSessions = timeFilteredSessions.filter((s) => s.completed_at);
   const avgAccuracy = completedSessions.length
     ? Math.round(
         completedSessions.reduce(
@@ -85,16 +138,18 @@ export default function DashboardPage() {
         ) / completedSessions.length,
       )
     : 0;
-  const avgTimePerQ = responses.length
+  const avgTimePerQ = timeFilteredResponses.length
     ? Math.round(
-        responses.reduce((sum, r) => sum + r.time_spent_seconds, 0) /
-          responses.length,
+        timeFilteredResponses.reduce(
+          (sum, r) => sum + r.time_spent_seconds,
+          0,
+        ) / timeFilteredResponses.length,
       )
     : 0;
   const totalQuestions = sets.reduce((sum, s) => sum + s.total_questions, 0);
 
   function getLastScore(setId: string) {
-    const setSession = sessions
+    const setSession = timeFilteredSessions
       .filter((s) => s.set_id === setId && s.completed_at)
       .sort(
         (a, b) =>
@@ -154,7 +209,7 @@ export default function DashboardPage() {
               {qs.total_questions} questions
             </Badge>
             <span className="opacity-60">
-              {formatDate(qs.created_at)}
+              {formatDate(qs.study_date ?? qs.created_at)}
             </span>
           </div>
 
@@ -202,6 +257,41 @@ export default function DashboardPage() {
   const filteredAndSortedSets = useMemo(() => {
     let result = [...sets];
 
+    // Filter by study_date — only applies to sets that have study_date set.
+    // Sets without study_date are "unscheduled" and always pass through.
+    if (timeFilter !== "all") {
+      const now = new Date();
+      const isSameDay = (d: Date, ref: Date) =>
+        d.getFullYear() === ref.getFullYear() &&
+        d.getMonth() === ref.getMonth() &&
+        d.getDate() === ref.getDate();
+      result = result.filter((s) => {
+        if (!s.study_date) return false; // sets without study_date hidden when filter is active
+        // Parse YYYY-MM-DD as local time (not UTC) to avoid timezone shift
+        const parts = s.study_date.split("-").map(Number);
+        if (parts.length !== 3) return true;
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        if (Number.isNaN(d.getTime())) return true;
+        switch (timeFilter) {
+          case "today":
+            return isSameDay(d, now);
+          case "yesterday": {
+            const yesterday = new Date(now);
+            yesterday.setDate(now.getDate() - 1);
+            return isSameDay(d, yesterday);
+          }
+          case "3d":
+            return d.getTime() >= now.getTime() - 3 * 24 * 60 * 60 * 1000;
+          case "7d":
+            return d.getTime() >= now.getTime() - 7 * 24 * 60 * 60 * 1000;
+          case "21d":
+            return d.getTime() >= now.getTime() - 21 * 24 * 60 * 60 * 1000;
+          default:
+            return true;
+        }
+      });
+    }
+
     // Search: name, topics, section
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
@@ -245,7 +335,7 @@ export default function DashboardPage() {
     });
 
     return result;
-  }, [sets, searchQuery, sectionFilter, sortBy]);
+  }, [sets, searchQuery, sectionFilter, sortBy, timeFilter]);
 
   if (loading) {
     return (
@@ -394,7 +484,25 @@ export default function DashboardPage() {
               </SelectContent>
             </Select>
 
-            {/* Sort */}
+            {/* Time range & sort */}
+            <Select
+              value={timeFilter}
+              onValueChange={(v) => setTimeFilter(v as TimeFilter)}
+            >
+              <SelectTrigger className="w-full sm:w-40 h-9 bg-slate-800/50 border-slate-700 text-sm">
+                <FaIcon icon={faClock} className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
+                <SelectValue placeholder="Time" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All time</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="yesterday">Yesterday</SelectItem>
+                <SelectItem value="3d">Last 3 days</SelectItem>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="21d">Last 21 days</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
               <SelectTrigger className="w-full sm:w-44 h-9 bg-slate-800/50 border-slate-700 text-sm">
                 <FaIcon icon={faArrowsUpDown} className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />

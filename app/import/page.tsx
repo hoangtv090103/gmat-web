@@ -92,6 +92,7 @@ export default function ImportPage() {
           target: header.target,
           total_questions: questions.length,
           source_filename: file.name,
+          study_date: header.date,
         },
         questions.map((q) => ({
           question_number: q.question_number,

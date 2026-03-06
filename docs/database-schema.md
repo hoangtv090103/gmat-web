@@ -10,16 +10,17 @@ All tables live in a Supabase (PostgreSQL) project. The application also maintai
 
 Stores imported or AI-generated collections of GMAT questions.
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | `uuid` | PK, default `gen_random_uuid()` | |
-| `name` | `text` | NOT NULL | Display name, e.g. "DS Number Properties" |
-| `section` | `text` | | GMAT section: `'Quantitative'`, `'Verbal'`, `'Data Insights'` |
-| `difficulty_range` | `text` | | Free-text range, e.g. `'600-700'` or `'700+'` |
-| `topics` | `text` | | Comma-separated topics, e.g. `'Algebra, Number Properties'` |
-| `total_questions` | `int` | NOT NULL | Denormalized count |
-| `source_filename` | `text` | | Original upload filename or `'claude-generated'` |
-| `created_at` | `timestamptz` | NOT NULL, default `now()` | |
+| Column             | Type          | Constraints                     | Description                                                   |
+| ------------------ | ------------- | ------------------------------- | ------------------------------------------------------------- |
+| `id`               | `uuid`        | PK, default `gen_random_uuid()` |                                                               |
+| `name`             | `text`        | NOT NULL                        | Display name, e.g. "DS Number Properties"                     |
+| `section`          | `text`        |                                 | GMAT section: `'Quantitative'`, `'Verbal'`, `'Data Insights'` |
+| `difficulty_range` | `text`        |                                 | Free-text range, e.g. `'600-700'` or `'700+'`                 |
+| `topics`           | `text`        |                                 | Comma-separated topics, e.g. `'Algebra, Number Properties'`   |
+| `total_questions`  | `int`         | NOT NULL                        | Denormalized count                                            |
+| `source_filename`  | `text`        |                                 | Original upload filename or `'claude-generated'`              |
+| `study_date`       | `date`        |                                 | Optional study date assignment, e.g. `'2026-03-07'`           |
+| `created_at`       | `timestamptz` | NOT NULL, default `now()`       |                                                               |
 
 ---
 
@@ -27,31 +28,32 @@ Stores imported or AI-generated collections of GMAT questions.
 
 Individual GMAT questions belonging to a set.
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | `uuid` | PK, default `gen_random_uuid()` | |
-| `set_id` | `uuid` | FK → `question_sets.id` ON DELETE CASCADE | |
-| `question_number` | `int` | NOT NULL | 1-based position within the set |
-| `question_type` | `text` | NOT NULL | See question types below |
-| `difficulty` | `int` | | GMAT scale, e.g. 500–800 |
-| `topic` | `text` | | Sub-topic, e.g. `'Number Properties'` |
-| `stem` | `text` | NOT NULL | Main question text |
-| `statement1` | `text` | | Data Sufficiency only |
-| `statement2` | `text` | | Data Sufficiency only |
-| `s1_verdict` | `text` | | DS: whether statement 1 alone is sufficient |
-| `s2_verdict` | `text` | | DS: whether statement 2 alone is sufficient |
-| `reasoning` | `text` | | DS: combined reasoning |
-| `choice_a` | `text` | NOT NULL | Answer choice A |
-| `choice_b` | `text` | NOT NULL | Answer choice B |
-| `choice_c` | `text` | NOT NULL | Answer choice C |
-| `choice_d` | `text` | NOT NULL | Answer choice D |
-| `choice_e` | `text` | NOT NULL | Answer choice E |
-| `correct_answer` | `text` | NOT NULL | `'A'` – `'E'` |
-| `explanation` | `text` | | Solution explanation |
-| `passage_id` | `uuid` | FK → `passages.id` | RC: groups questions sharing a passage |
-| `created_at` | `timestamptz` | NOT NULL, default `now()` | |
+| Column            | Type          | Constraints                               | Description                                 |
+| ----------------- | ------------- | ----------------------------------------- | ------------------------------------------- |
+| `id`              | `uuid`        | PK, default `gen_random_uuid()`           |                                             |
+| `set_id`          | `uuid`        | FK → `question_sets.id` ON DELETE CASCADE |                                             |
+| `question_number` | `int`         | NOT NULL                                  | 1-based position within the set             |
+| `question_type`   | `text`        | NOT NULL                                  | See question types below                    |
+| `difficulty`      | `int`         |                                           | GMAT scale, e.g. 500–800                    |
+| `topic`           | `text`        |                                           | Sub-topic, e.g. `'Number Properties'`       |
+| `stem`            | `text`        | NOT NULL                                  | Main question text                          |
+| `statement1`      | `text`        |                                           | Data Sufficiency only                       |
+| `statement2`      | `text`        |                                           | Data Sufficiency only                       |
+| `s1_verdict`      | `text`        |                                           | DS: whether statement 1 alone is sufficient |
+| `s2_verdict`      | `text`        |                                           | DS: whether statement 2 alone is sufficient |
+| `reasoning`       | `text`        |                                           | DS: combined reasoning                      |
+| `choice_a`        | `text`        | NOT NULL                                  | Answer choice A                             |
+| `choice_b`        | `text`        | NOT NULL                                  | Answer choice B                             |
+| `choice_c`        | `text`        | NOT NULL                                  | Answer choice C                             |
+| `choice_d`        | `text`        | NOT NULL                                  | Answer choice D                             |
+| `choice_e`        | `text`        | NOT NULL                                  | Answer choice E                             |
+| `correct_answer`  | `text`        | NOT NULL                                  | `'A'` – `'E'`                               |
+| `explanation`     | `text`        |                                           | Solution explanation                        |
+| `passage_id`      | `uuid`        | FK → `passages.id`                        | RC: groups questions sharing a passage      |
+| `created_at`      | `timestamptz` | NOT NULL, default `now()`                 |                                             |
 
 **Question types** (`question_type` enum values):
+
 - `'Problem Solving'`
 - `'Data Sufficiency'`
 - `'Critical Reasoning'`
@@ -69,12 +71,12 @@ Individual GMAT questions belonging to a set.
 
 Shared passages for Reading Comprehension (and Data Insights multi-part sources).
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | `uuid` | PK, default `gen_random_uuid()` | |
-| `set_id` | `uuid` | FK → `question_sets.id` ON DELETE CASCADE | Question set this passage belongs to |
-| `passage_text` | `text` | NOT NULL | Full passage text |
-| `created_at` | `timestamptz` | NOT NULL, default `now()` | |
+| Column         | Type          | Constraints                               | Description                          |
+| -------------- | ------------- | ----------------------------------------- | ------------------------------------ |
+| `id`           | `uuid`        | PK, default `gen_random_uuid()`           |                                      |
+| `set_id`       | `uuid`        | FK → `question_sets.id` ON DELETE CASCADE | Question set this passage belongs to |
+| `passage_text` | `text`        | NOT NULL                                  | Full passage text                    |
+| `created_at`   | `timestamptz` | NOT NULL, default `now()`                 |                                      |
 
 **Index:** `(set_id)`
 
@@ -84,20 +86,20 @@ Shared passages for Reading Comprehension (and Data Insights multi-part sources)
 
 One record per exam attempt (timed, practice, review, or simulation section).
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | `uuid` | PK, default `gen_random_uuid()` | |
-| `set_id` | `uuid` | FK → `question_sets.id` | |
-| `mode` | `text` | NOT NULL | `'timed'`, `'practice'`, `'review'`, `'simulation'` |
-| `started_at` | `timestamptz` | NOT NULL, default `now()` | |
-| `completed_at` | `timestamptz` | | NULL until exam is submitted |
-| `total_time_seconds` | `int` | | Wall-clock duration at submission |
-| `correct_count` | `int` | | |
-| `total_count` | `int` | NOT NULL | Number of questions in the session |
-| `score` | `int` | | Raw percentage score 0–100 |
-| `simulation_exam_id` | `uuid` | FK → `simulation_exams.id` | NULL for non-simulation sessions |
-| `simulation_section_order` | `int` | | 1-based section number within simulation |
-| `session_metadata` | `jsonb` | | Reserved for future use |
+| Column                     | Type          | Constraints                     | Description                                         |
+| -------------------------- | ------------- | ------------------------------- | --------------------------------------------------- |
+| `id`                       | `uuid`        | PK, default `gen_random_uuid()` |                                                     |
+| `set_id`                   | `uuid`        | FK → `question_sets.id`         |                                                     |
+| `mode`                     | `text`        | NOT NULL                        | `'timed'`, `'practice'`, `'review'`, `'simulation'` |
+| `started_at`               | `timestamptz` | NOT NULL, default `now()`       |                                                     |
+| `completed_at`             | `timestamptz` |                                 | NULL until exam is submitted                        |
+| `total_time_seconds`       | `int`         |                                 | Wall-clock duration at submission                   |
+| `correct_count`            | `int`         |                                 |                                                     |
+| `total_count`              | `int`         | NOT NULL                        | Number of questions in the session                  |
+| `score`                    | `int`         |                                 | Raw percentage score 0–100                          |
+| `simulation_exam_id`       | `uuid`        | FK → `simulation_exams.id`      | NULL for non-simulation sessions                    |
+| `simulation_section_order` | `int`         |                                 | 1-based section number within simulation            |
+| `session_metadata`         | `jsonb`       |                                 | Reserved for future use                             |
 
 **Index:** `(set_id)`, `(simulation_exam_id)`, `(completed_at DESC)`
 
@@ -107,26 +109,26 @@ One record per exam attempt (timed, practice, review, or simulation section).
 
 One record per question per exam session.
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | `uuid` | PK, default `gen_random_uuid()` | |
-| `session_id` | `uuid` | FK → `exam_sessions.id` ON DELETE CASCADE | |
-| `question_id` | `uuid` | FK → `questions.id` | |
-| `question_order` | `int` | NOT NULL | **1-based** position within the session |
-| `selected_answer` | `text` | | `'A'`–`'E'`, NULL if skipped |
-| `is_correct` | `boolean` | | NULL if skipped |
-| `time_spent_seconds` | `int` | NOT NULL, default `0` | Per-question time tracked client-side |
-| `flagged_for_review` | `boolean` | NOT NULL, default `false` | |
-| `first_answer` | `text` | | First selection before any changes |
-| `answer_changes` | `jsonb` | | Array of `{ from, to, timestamp_offset_ms }` |
-| `confidence_rating` | `int` | | 1–5 stars, NULL if not rated |
-| `error_category` | `text` | | `'Content'`, `'Process'`, or `'Habit'` |
-| `note` | `text` | | Free-text note to self |
-| `triage_triggered` | `boolean` | NOT NULL, default `false` | Whether 2-min triage alert fired |
-| `missing_link` | `text` | | CR: user's pre-written assumption |
-| `choices_unlocked_at_ms` | `int` | | CR: offset ms when choices were unlocked |
-| `passage_map` | `jsonb` | | RC: `{ p1, p2, ..., mainIdea }` map |
-| `created_at` | `timestamptz` | NOT NULL, default `now()` | |
+| Column                   | Type          | Constraints                               | Description                                  |
+| ------------------------ | ------------- | ----------------------------------------- | -------------------------------------------- |
+| `id`                     | `uuid`        | PK, default `gen_random_uuid()`           |                                              |
+| `session_id`             | `uuid`        | FK → `exam_sessions.id` ON DELETE CASCADE |                                              |
+| `question_id`            | `uuid`        | FK → `questions.id`                       |                                              |
+| `question_order`         | `int`         | NOT NULL                                  | **1-based** position within the session      |
+| `selected_answer`        | `text`        |                                           | `'A'`–`'E'`, NULL if skipped                 |
+| `is_correct`             | `boolean`     |                                           | NULL if skipped                              |
+| `time_spent_seconds`     | `int`         | NOT NULL, default `0`                     | Per-question time tracked client-side        |
+| `flagged_for_review`     | `boolean`     | NOT NULL, default `false`                 |                                              |
+| `first_answer`           | `text`        |                                           | First selection before any changes           |
+| `answer_changes`         | `jsonb`       |                                           | Array of `{ from, to, timestamp_offset_ms }` |
+| `confidence_rating`      | `int`         |                                           | 1–5 stars, NULL if not rated                 |
+| `error_category`         | `text`        |                                           | `'Content'`, `'Process'`, or `'Habit'`       |
+| `note`                   | `text`        |                                           | Free-text note to self                       |
+| `triage_triggered`       | `boolean`     | NOT NULL, default `false`                 | Whether 2-min triage alert fired             |
+| `missing_link`           | `text`        |                                           | CR: user's pre-written assumption            |
+| `choices_unlocked_at_ms` | `int`         |                                           | CR: offset ms when choices were unlocked     |
+| `passage_map`            | `jsonb`       |                                           | RC: `{ p1, p2, ..., mainIdea }` map          |
+| `created_at`             | `timestamptz` | NOT NULL, default `now()`                 |                                              |
 
 **Unique constraint:** `(session_id, question_id)`
 
@@ -138,15 +140,15 @@ One record per question per exam session.
 
 Granular behavioral log — one row per user action during an exam.
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | `uuid` | PK, default `gen_random_uuid()` | |
-| `session_id` | `uuid` | FK → `exam_sessions.id` ON DELETE CASCADE | |
-| `question_id` | `uuid` | FK → `questions.id` | NULL for session-level events |
-| `event_type` | `text` | NOT NULL | See event types below |
-| `event_data` | `jsonb` | | Arbitrary payload per event type |
-| `timestamp_offset_ms` | `int` | NOT NULL | Ms since session start |
-| `created_at` | `timestamptz` | NOT NULL, default `now()` | |
+| Column                | Type          | Constraints                               | Description                      |
+| --------------------- | ------------- | ----------------------------------------- | -------------------------------- |
+| `id`                  | `uuid`        | PK, default `gen_random_uuid()`           |                                  |
+| `session_id`          | `uuid`        | FK → `exam_sessions.id` ON DELETE CASCADE |                                  |
+| `question_id`         | `uuid`        | FK → `questions.id`                       | NULL for session-level events    |
+| `event_type`          | `text`        | NOT NULL                                  | See event types below            |
+| `event_data`          | `jsonb`       |                                           | Arbitrary payload per event type |
+| `timestamp_offset_ms` | `int`         | NOT NULL                                  | Ms since session start           |
+| `created_at`          | `timestamptz` | NOT NULL, default `now()`                 |                                  |
 
 **Event types** (`event_type` values):
 | Value | Description |
@@ -179,15 +181,15 @@ Granular behavioral log — one row per user action during an exam.
 
 Top-level record for a full 3-section mock exam.
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | `uuid` | PK, default `gen_random_uuid()` | |
-| `section_order` | `text[]` | NOT NULL | Ordered array: `['quant','verbal','di']` |
-| `breaks_enabled` | `boolean` | NOT NULL, default `true` | |
-| `status` | `text` | NOT NULL | `'in_progress'`, `'completed'` |
-| `total_score` | `int` | | Estimated 205–805 composite score |
-| `completed_at` | `timestamptz` | | |
-| `created_at` | `timestamptz` | NOT NULL, default `now()` | |
+| Column           | Type          | Constraints                     | Description                              |
+| ---------------- | ------------- | ------------------------------- | ---------------------------------------- |
+| `id`             | `uuid`        | PK, default `gen_random_uuid()` |                                          |
+| `section_order`  | `text[]`      | NOT NULL                        | Ordered array: `['quant','verbal','di']` |
+| `breaks_enabled` | `boolean`     | NOT NULL, default `true`        |                                          |
+| `status`         | `text`        | NOT NULL                        | `'in_progress'`, `'completed'`           |
+| `total_score`    | `int`         |                                 | Estimated 205–805 composite score        |
+| `completed_at`   | `timestamptz` |                                 |                                          |
+| `created_at`     | `timestamptz` | NOT NULL, default `now()`       |                                          |
 
 ---
 
@@ -195,22 +197,22 @@ Top-level record for a full 3-section mock exam.
 
 One record per section within a simulation exam.
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | `uuid` | PK, default `gen_random_uuid()` | |
-| `simulation_exam_id` | `uuid` | FK → `simulation_exams.id` ON DELETE CASCADE | |
-| `section_type` | `text` | NOT NULL | `'quant'`, `'verbal'`, `'di'` |
-| `section_order` | `int` | NOT NULL | 1-based |
-| `question_set_id` | `uuid` | FK → `question_sets.id` | |
-| `session_id` | `uuid` | FK → `exam_sessions.id` | Set after section starts |
-| `scaled_score` | `int` | | Estimated 60–90 per-section score |
-| `raw_correct` | `int` | | |
-| `raw_total` | `int` | | |
-| `time_used_seconds` | `int` | | |
-| `questions_skipped` | `int` | | |
-| `break_taken_after` | `boolean` | | Whether break was taken after this section |
-| `started_at` | `timestamptz` | | |
-| `completed_at` | `timestamptz` | | |
+| Column               | Type          | Constraints                                  | Description                                |
+| -------------------- | ------------- | -------------------------------------------- | ------------------------------------------ |
+| `id`                 | `uuid`        | PK, default `gen_random_uuid()`              |                                            |
+| `simulation_exam_id` | `uuid`        | FK → `simulation_exams.id` ON DELETE CASCADE |                                            |
+| `section_type`       | `text`        | NOT NULL                                     | `'quant'`, `'verbal'`, `'di'`              |
+| `section_order`      | `int`         | NOT NULL                                     | 1-based                                    |
+| `question_set_id`    | `uuid`        | FK → `question_sets.id`                      |                                            |
+| `session_id`         | `uuid`        | FK → `exam_sessions.id`                      | Set after section starts                   |
+| `scaled_score`       | `int`         |                                              | Estimated 60–90 per-section score          |
+| `raw_correct`        | `int`         |                                              |                                            |
+| `raw_total`          | `int`         |                                              |                                            |
+| `time_used_seconds`  | `int`         |                                              |                                            |
+| `questions_skipped`  | `int`         |                                              |                                            |
+| `break_taken_after`  | `boolean`     |                                              | Whether break was taken after this section |
+| `started_at`         | `timestamptz` |                                              |                                            |
+| `completed_at`       | `timestamptz` |                                              |                                            |
 
 **Index:** `(simulation_exam_id, section_order)`
 

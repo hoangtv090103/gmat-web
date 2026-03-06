@@ -19,6 +19,7 @@ export interface QuestionSet {
   total_questions: number;
   created_at: string;
   source_filename?: string;
+  study_date?: string;
 }
 
 export interface Question {
