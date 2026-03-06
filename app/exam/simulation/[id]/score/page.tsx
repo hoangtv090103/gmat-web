@@ -2,12 +2,20 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ExternalLink, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import {
+  faArrowLeft,
+  faArrowRight,
+  faArrowTrendDown,
+  faArrowTrendUp,
+  faArrowUpRightFromSquare,
+  faMinus,
+} from '@fortawesome/free-solid-svg-icons';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getSimulationExam, getSimulationSections } from '@/lib/db';
 import { SimulationExam, SimulationSection, SectionType } from '@/types/gmat';
 import { useSimulationStore, SECTION_LABELS, SectionResult } from '@/store/simulationStore';
+import { FaIcon } from '@/components/ui/fa-icon';
 
 const TARGET_SCORE = 680;
 
@@ -21,7 +29,7 @@ function computeSectionScore(correct: number, total: number): number {
 function computeTotalScore(sectionScores: number[]): number {
   const sum = sectionScores.reduce((a, b) => a + b, 0);
   if (!sectionScores.length) return 205;
-  // 3 sections × 60–90 = 180–270 → map to 205–805
+  // 3 sections × 60–90 = 180–270 -> map to 205–805
   return Math.max(205, Math.min(805, Math.floor((sum / 270) * 600 + 205)));
 }
 
@@ -198,7 +206,7 @@ export default function ScoreReportPage({ params }: { params: Promise<{ id: stri
     gap >= -30 ? 'text-amber-400' :
     'text-red-400';
 
-  const GapIcon = gap >= 0 ? TrendingUp : gap >= -10 ? Minus : TrendingDown;
+  const gapIcon = gap >= 0 ? faArrowTrendUp : gap >= -10 ? faMinus : faArrowTrendDown;
   const gapColorClass = gap >= 0 ? 'text-emerald-400' : gap >= -30 ? 'text-amber-400' : 'text-red-400';
 
   // Sort section cards by section_order
@@ -239,7 +247,7 @@ export default function ScoreReportPage({ params }: { params: Promise<{ id: stri
             <span className="text-slate-400">Target: {TARGET_SCORE}</span>
             <span className="text-slate-600">·</span>
             <span className={`flex items-center gap-1 font-medium ${gapColorClass}`}>
-              <GapIcon className="w-4 h-4" />
+              <FaIcon icon={gapIcon} className="w-4 h-4" />
               {gap >= 0 ? `+${gap}` : gap} points
             </span>
           </div>
@@ -286,15 +294,15 @@ export default function ScoreReportPage({ params }: { params: Promise<{ id: stri
             onClick={handleReview}
             disabled={!sectionCards[0]?.sessionId && !simState.sectionResults[0]?.sessionId}
           >
-            <ExternalLink className="w-4 h-4 mr-2" />
-            Review this exam →
+            <FaIcon icon={faArrowUpRightFromSquare} className="w-4 h-4 mr-2" />
+            Review this exam <FaIcon icon={faArrowRight} className="ml-2 h-3.5 w-3.5" />
           </Button>
           <Button
             variant="outline"
             className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 h-11"
             onClick={handleReturnDashboard}
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <FaIcon icon={faArrowLeft} className="w-4 h-4 mr-2" />
             Return to Dashboard
           </Button>
         </div>

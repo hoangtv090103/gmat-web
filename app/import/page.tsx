@@ -11,6 +11,15 @@ import { parseDocxFile } from "@/lib/parsers/docxParser";
 import { parsePdfFile } from "@/lib/parsers/pdfParser";
 import { saveQuestionSet } from "@/lib/db";
 import { ParseResult, ParsedQuestion, QuestionType } from "@/types/gmat";
+import {
+  faArrowLeft,
+  faCircleCheck,
+  faFile,
+  faFolderOpen,
+  faSpinner,
+  faTriangleExclamation,
+} from "@fortawesome/free-solid-svg-icons";
+import { FaIcon } from "@/components/ui/fa-icon";
 
 export default function ImportPage() {
   const router = useRouter();
@@ -122,7 +131,8 @@ export default function ImportPage() {
           onClick={() => router.push("/")}
           className="mb-4 text-muted-foreground hover:text-foreground"
         >
-          ← Back to Dashboard
+          <FaIcon icon={faArrowLeft} className="mr-2 h-3.5 w-3.5" />
+          Back to Dashboard
         </Button>
         <h1 className="text-2xl font-bold">Import Question Set</h1>
         <p className="text-muted-foreground mt-1">
@@ -155,8 +165,14 @@ export default function ImportPage() {
             if (f) handleFile(f);
           }}
         />
-        <div className="text-5xl mb-4">
-          {file ? "✅" : dragActive ? "📂" : "📄"}
+        <div className="text-5xl mb-4 flex justify-center">
+          {file ? (
+            <FaIcon icon={faCircleCheck} className="h-10 w-10 text-emerald-400" />
+          ) : dragActive ? (
+            <FaIcon icon={faFolderOpen} className="h-10 w-10 text-blue-400" />
+          ) : (
+            <FaIcon icon={faFile} className="h-10 w-10 text-slate-400" />
+          )}
         </div>
         <p className="text-lg font-medium mb-2">
           {file ? file.name : "Drop your GMAT file here"}
@@ -173,7 +189,7 @@ export default function ImportPage() {
         <Card className="glass-card mb-6 animate-fade-in">
           <CardContent className="py-6">
             <div className="flex items-center gap-3 mb-3">
-              <div className="animate-spin text-xl">⚙️</div>
+              <FaIcon icon={faSpinner} className="h-4 w-4 text-slate-300" spin />
               <span>Parsing questions...</span>
             </div>
             <Progress value={50} className="h-2" />
@@ -268,7 +284,8 @@ export default function ImportPage() {
                       </Badge>
                       {q.correct_answer && (
                         <Badge className="bg-green-600/20 text-green-400 ml-auto">
-                          ✓ {q.correct_answer}
+                          <FaIcon icon={faCircleCheck} className="mr-2 h-3 w-3" />
+                          {q.correct_answer}
                         </Badge>
                       )}
                     </div>
@@ -302,7 +319,10 @@ export default function ImportPage() {
             <Card className="border-yellow-500/30 bg-yellow-500/5">
               <CardHeader>
                 <CardTitle className="text-sm text-yellow-400">
-                  ⚠️ Parse Warnings ({parseResult.errors.length})
+                  <span className="inline-flex items-center gap-2">
+                    <FaIcon icon={faTriangleExclamation} className="h-4 w-4" />
+                    Parse Warnings ({parseResult.errors.length})
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -338,7 +358,7 @@ export default function ImportPage() {
               disabled={saving}
             >
               {saving
-                ? "⏳ Saving..."
+                ? "Saving..."
                 : `Save ${parseResult.questions.length} Questions`}
             </Button>
           </div>

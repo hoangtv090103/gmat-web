@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
+  faArrowRight,
+  faCircleCheck,
+  faClock,
+  faTriangleExclamation,
+} from "@fortawesome/free-solid-svg-icons";
+import { FaIcon } from "@/components/ui/fa-icon";
+import {
   getQuestionsBySetId,
   createSession,
   saveResponses,
@@ -121,7 +128,7 @@ function TriageBanner({ onDismiss }: { onDismiss: () => void }) {
     <div className="fixed bottom-0 left-0 right-0 z-50">
       <div className="mx-auto max-w-4xl mb-4 px-4">
         <div className="bg-amber-950/95 border border-amber-500/40 rounded-xl px-5 py-3 flex items-center gap-4 shadow-2xl shadow-amber-900/50 backdrop-blur">
-          <span className="text-xl flex-shrink-0">⏰</span>
+          <FaIcon icon={faClock} className="text-xl flex-shrink-0 text-amber-300" />
           <p className="text-amber-200 text-sm flex-1">
             2 minutes. Make your best guess and move on — do not spiral.
           </p>
@@ -170,7 +177,7 @@ function SectionTimer({
       // Warning toasts
       if (rem <= 60 && !warned1Ref.current) {
         warned1Ref.current = true;
-        toast.warning("⚠️ 1 minute remaining", { duration: 4000 });
+        toast.warning("1 minute remaining", { duration: 4000 });
       } else if (rem <= 300 && !warned5Ref.current) {
         warned5Ref.current = true;
       } else if (rem <= 600 && !warned10Ref.current) {
@@ -301,7 +308,9 @@ function SectionSummary({
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-11 font-semibold"
             onClick={onViewScore}
           >
-            View Score Report →
+            <span className="inline-flex items-center gap-2">
+              View Score Report <FaIcon icon={faArrowRight} className="h-4 w-4" />
+            </span>
           </Button>
         ) : (
           <div className="space-y-3">
@@ -317,7 +326,10 @@ function SectionSummary({
                   className="w-full text-sm text-slate-400 hover:text-slate-200 transition-colors"
                   onClick={onSkipBreak}
                 >
-                  Skip break, continue to Section {sectionIndex + 2} →
+                  <span className="inline-flex items-center gap-2 justify-center">
+                    Skip break, continue to Section {sectionIndex + 2}{" "}
+                    <FaIcon icon={faArrowRight} className="h-3.5 w-3.5" />
+                  </span>
                 </button>
               </>
             ) : (
@@ -325,7 +337,10 @@ function SectionSummary({
                 className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-11"
                 onClick={onBeginNextSection}
               >
-                Begin Section {sectionIndex + 2} →
+                <span className="inline-flex items-center gap-2">
+                  Begin Section {sectionIndex + 2}{" "}
+                  <FaIcon icon={faArrowRight} className="h-4 w-4" />
+                </span>
               </Button>
             )}
           </div>
@@ -367,7 +382,7 @@ function SectionCountdown({
         </p>
         <h2 className="text-2xl font-semibold text-white">{label}</h2>
         <div className="text-7xl font-bold text-indigo-400 tabular-nums my-6">
-          {count || "→"}
+          {count > 0 ? count : <FaIcon icon={faArrowRight} className="h-12 w-12" />}
         </div>
         <p className="text-slate-500 text-sm">Starting now…</p>
       </div>
@@ -534,7 +549,7 @@ export default function SimulationExamPage({
       }
       setSessionId(sid);
 
-      // Update simulation store: session started → status becomes 'in_section'
+      // Update simulation store: session started -> status becomes 'in_section'
       startSection(sid, currentSection.sectionRecordId ?? sid);
 
       triageFiredRef.current = false;
@@ -917,7 +932,9 @@ export default function SimulationExamPage({
     return (
       <div className="min-h-screen bg-[#0A1628] flex items-center justify-center px-4">
         <div className="text-center space-y-4 max-w-sm">
-          <p className="text-4xl">⚠️</p>
+          <div className="flex justify-center">
+            <FaIcon icon={faTriangleExclamation} className="h-10 w-10 text-amber-400" />
+          </div>
           <h2 className="text-white font-semibold text-lg">
             Failed to load section
           </h2>
@@ -1120,8 +1137,16 @@ export default function SimulationExamPage({
               {saving
                 ? "Saving…"
                 : currentIndex >= questions.length - 1
-                  ? "End Section ✓"
-                  : "Next →"}
+                  ? (
+                      <span className="inline-flex items-center gap-2">
+                        End Section <FaIcon icon={faCircleCheck} className="h-4 w-4" />
+                      </span>
+                    )
+                  : (
+                      <span className="inline-flex items-center gap-2">
+                        Next <FaIcon icon={faArrowRight} className="h-4 w-4" />
+                      </span>
+                    )}
             </Button>
           </div>
         </div>
@@ -1269,6 +1294,6 @@ function SimQuestionPanel({
 function computeTotalScore(results: SectionResult[]): number {
   if (!results.length) return 205;
   const sum = results.reduce((acc, r) => acc + r.scaledScore, 0);
-  // 3 sections × 60–90 = 180–270 → map to 205–805
+  // 3 sections × 60–90 = 180–270 -> map to 205–805
   return Math.floor((sum / 270) * 600 + 205);
 }

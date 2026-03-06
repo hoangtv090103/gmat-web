@@ -11,6 +11,15 @@ import { getQuestionsBySetId, getQuestionSets, createSession } from "@/lib/db";
 import { QuestionSet, Question, ExamMode } from "@/types/gmat";
 import { useExamStore } from "@/store/examStore";
 import { Suspense } from "react";
+import {
+  faArrowLeft,
+  faArrowRight,
+  faClock,
+  faEye,
+  faPen,
+  faSpinner,
+} from "@fortawesome/free-solid-svg-icons";
+import { FaIcon } from "@/components/ui/fa-icon";
 
 function ExamSetupContent() {
   const router = useRouter();
@@ -107,7 +116,8 @@ function ExamSetupContent() {
         onClick={() => router.push("/")}
         className="mb-6 text-muted-foreground"
       >
-        ← Back
+        <FaIcon icon={faArrowLeft} className="mr-2 h-3.5 w-3.5" />
+        Back
       </Button>
 
       <Card className="glass-card animate-slide-up">
@@ -144,19 +154,22 @@ function ExamSetupContent() {
                 [
                   {
                     value: "timed",
-                    label: "⏱ Timed",
+                    label: "Timed",
+                    icon: faClock,
                     desc: "Countdown timer, real exam conditions",
                     color: "blue",
                   },
                   {
                     value: "practice",
-                    label: "📝 Practice",
+                    label: "Practice",
+                    icon: faPen,
                     desc: "Count-up timer, see answers per Q",
                     color: "green",
                   },
                   {
                     value: "review",
-                    label: "👁 Review",
+                    label: "Review",
+                    icon: faEye,
                     desc: "No timer, all answers visible",
                     color: "purple",
                   },
@@ -192,7 +205,10 @@ function ExamSetupContent() {
                       : {}
                   }
                 >
-                  <div className="text-lg mb-1">{m.label}</div>
+                  <div className="text-lg mb-1 flex items-center gap-2">
+                    <FaIcon icon={m.icon} className="h-4 w-4 text-slate-200" />
+                    {m.label}
+                  </div>
                   <div className="text-xs text-muted-foreground">{m.desc}</div>
                 </button>
               ))}
@@ -229,7 +245,16 @@ function ExamSetupContent() {
             onClick={handleStart}
             disabled={starting}
           >
-            {starting ? "⏳ Starting..." : "Start Exam →"}
+            {starting ? (
+              <span className="inline-flex items-center gap-2">
+                <FaIcon icon={faSpinner} className="h-4 w-4" spin />
+                Starting...
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                Start Exam <FaIcon icon={faArrowRight} className="h-4 w-4" />
+              </span>
+            )}
           </Button>
         </CardContent>
       </Card>

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { faArrowRight } from '@fortawesome/free-solid-svg-icons';
+import { FaIcon } from '@/components/ui/fa-icon';
 import {
   Dialog,
   DialogContent,
@@ -90,7 +92,9 @@ function ResumeCountdown({ label, sectionNumber, onDone }: { label: string; sect
       <div className="text-center space-y-4">
         <p className="text-slate-400 text-sm uppercase tracking-widest">Section {sectionNumber}</p>
         <h2 className="text-2xl font-semibold text-white">{label}</h2>
-        <div className="text-7xl font-bold text-indigo-400 tabular-nums my-6">{count || '→'}</div>
+        <div className="text-7xl font-bold text-indigo-400 tabular-nums my-6">
+          {count > 0 ? count : <FaIcon icon={faArrowRight} className="h-12 w-12" />}
+        </div>
         <p className="text-slate-500 text-sm">Starting now…</p>
       </div>
     </div>

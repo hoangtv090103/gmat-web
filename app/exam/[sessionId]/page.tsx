@@ -15,6 +15,18 @@ import {
 } from "@/lib/db";
 import type { Passage } from "@/types/gmat";
 import { toast } from "sonner";
+import {
+  faArrowLeft,
+  faArrowRight,
+  faCircleCheck,
+  faClock,
+  faFlag,
+  faLink,
+  faMap,
+  faStar,
+  faUnlock,
+} from "@fortawesome/free-solid-svg-icons";
+import { FaIcon } from "@/components/ui/fa-icon";
 
 // ─── Per-Question Countdown Ring ─────────────────────────────
 
@@ -111,7 +123,7 @@ function TriageBanner({ mode, onFlagAndNext, onDismiss }: TriageBannerProps) {
     <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up">
       <div className="mx-auto max-w-4xl mb-4 px-4">
         <div className="bg-amber-950/95 border border-amber-500/40 rounded-xl px-5 py-3 flex items-center gap-4 shadow-2xl shadow-amber-900/50 backdrop-blur">
-          <span className="text-xl flex-shrink-0">⏰</span>
+          <FaIcon icon={faClock} className="text-xl flex-shrink-0 text-amber-300" />
           <p className="text-amber-200 text-sm flex-1">
             {mode === "timed" || mode === "simulation"
               ? "2 minutes. Make your best guess and move on — do not spiral."
@@ -124,7 +136,10 @@ function TriageBanner({ mode, onFlagAndNext, onDismiss }: TriageBannerProps) {
                 className="bg-blue-600 hover:bg-blue-700 text-xs px-3 h-8"
                 onClick={onFlagAndNext}
               >
-                Flag &amp; Next →
+                <span className="inline-flex items-center gap-2">
+                  <FaIcon icon={faFlag} className="h-3.5 w-3.5" />
+                  Flag &amp; Next <FaIcon icon={faArrowRight} className="h-3.5 w-3.5" />
+                </span>
               </Button>
             )}
             <Button
@@ -164,7 +179,10 @@ function MissingLinkGate({
     <div className="mb-4 p-4 rounded-xl border border-blue-500/20 bg-blue-500/5">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-blue-400 font-semibold text-sm">
-          📝 Missing Link
+          <span className="inline-flex items-center gap-2">
+            <FaIcon icon={faLink} className="h-3.5 w-3.5" />
+            Missing Link
+          </span>
         </span>
         <span className="text-xs text-muted-foreground">
           Required before answer choices unlock
@@ -202,7 +220,10 @@ function MissingLinkGate({
             onClick={onUnlock}
             className="bg-blue-600 hover:bg-blue-700 text-xs h-8 disabled:opacity-40"
           >
-            Unlock Answer Choices →
+            <span className="inline-flex items-center gap-2">
+              <FaIcon icon={faUnlock} className="h-3.5 w-3.5" />
+              Unlock Answer Choices <FaIcon icon={faArrowRight} className="h-3.5 w-3.5" />
+            </span>
           </Button>
         </div>
       </div>
@@ -239,8 +260,9 @@ function PassageMapInput({
   if (isComplete && mode !== "review") {
     return (
       <div className="mt-4 p-3 rounded-lg border border-slate-700 bg-slate-900/50 text-xs text-muted-foreground">
-        <span className="text-green-400 font-medium">
-          ✅ Passage Map complete
+        <span className="text-green-400 font-medium inline-flex items-center gap-2">
+          <FaIcon icon={faCircleCheck} className="h-3.5 w-3.5" />
+          Passage Map complete
         </span>
         <div className="mt-1 space-y-1">
           {paragraphs.map((_, i) => (
@@ -261,7 +283,10 @@ function PassageMapInput({
     <div className="mt-4 p-4 rounded-xl border border-purple-500/20 bg-purple-500/5">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-purple-400 font-semibold text-sm">
-          🗺️ Passage Map
+          <span className="inline-flex items-center gap-2">
+            <FaIcon icon={faMap} className="h-3.5 w-3.5" />
+            Passage Map
+          </span>
         </span>
         <span className="text-xs text-muted-foreground">
           Required before questions unlock
@@ -325,7 +350,9 @@ function PassageMapInput({
             onClick={onComplete}
             className="bg-purple-600 hover:bg-purple-700 text-xs h-8 disabled:opacity-40"
           >
-            Proceed to Questions →
+            <span className="inline-flex items-center gap-2">
+              Proceed to Questions <FaIcon icon={faArrowRight} className="h-3.5 w-3.5" />
+            </span>
           </Button>
         </div>
       )}
@@ -698,8 +725,9 @@ export default function ExamPage({
                   Reading Comprehension
                 </span>
                 {!isSimulation && qs?.passageMapComplete && (
-                  <span className="text-[10.5px] text-green-500/70 font-medium">
-                    ✓ Passage Map complete
+                  <span className="text-[10.5px] text-green-500/70 font-medium inline-flex items-center gap-2">
+                    <FaIcon icon={faCircleCheck} className="h-3 w-3" />
+                    Passage Map complete
                   </span>
                 )}
               </div>
@@ -806,7 +834,10 @@ export default function ExamPage({
               disabled={currentIndex === 0}
               className="text-muted-foreground"
             >
-              ← Back
+              <span className="inline-flex items-center gap-2">
+                <FaIcon icon={faArrowLeft} className="h-3.5 w-3.5" />
+                Back
+              </span>
             </Button>
           )}
           <span className="text-muted-foreground text-sm">
@@ -817,14 +848,18 @@ export default function ExamPage({
               onClick={navigateNext}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Next →
+              <span className="inline-flex items-center gap-2">
+                Next <FaIcon icon={faArrowRight} className="h-3.5 w-3.5" />
+              </span>
             </Button>
           ) : (
             <Button
               onClick={handleSubmit}
               className="bg-green-600 hover:bg-green-700"
             >
-              Submit Exam ✓
+              <span className="inline-flex items-center gap-2">
+                Submit Exam <FaIcon icon={faCircleCheck} className="h-4 w-4" />
+              </span>
             </Button>
           )}
         </div>
@@ -914,7 +949,10 @@ function QuestionPanel({
           </Badge>
           {!isSimulation && qs?.flagged && (
             <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">
-              🚩 Flagged
+              <span className="inline-flex items-center gap-2">
+                <FaIcon icon={faFlag} className="h-3.5 w-3.5" />
+                Flagged
+              </span>
             </Badge>
           )}
         </div>
@@ -932,7 +970,7 @@ function QuestionPanel({
               className={`text-xl transition-all hover:scale-110 ${qs?.flagged ? "opacity-100" : "opacity-40 hover:opacity-80"}`}
               title="Flag for review (F)"
             >
-              🚩
+              <FaIcon icon={faFlag} className="h-5 w-5" />
             </button>
           )}
         </div>
@@ -982,7 +1020,10 @@ function QuestionPanel({
       {isCR && qs?.choicesUnlocked && qs?.missingLink && (
         <details className="text-xs">
           <summary className="text-blue-400 cursor-pointer hover:text-blue-300 mb-1">
-            📝 My Missing Link (click to expand)
+            <span className="inline-flex items-center gap-2">
+              <FaIcon icon={faLink} className="h-3.5 w-3.5" />
+              My Missing Link (click to expand)
+            </span>
           </summary>
           <div className="p-3 bg-blue-500/5 rounded-lg border border-blue-500/20 text-slate-300 leading-relaxed">
             {qs.missingLink}
@@ -1035,7 +1076,7 @@ function QuestionPanel({
                 <span className="text-sm leading-relaxed pt-0.5">{text}</span>
                 {showResult && isCorrectAns && (
                   <span className="ml-auto text-green-400 text-sm flex-shrink-0">
-                    ✓
+                    <FaIcon icon={faCircleCheck} className="h-4 w-4" />
                   </span>
                 )}
               </button>
@@ -1053,7 +1094,7 @@ function QuestionPanel({
               onClick={() => onConfidence(r)}
               className={`text-lg transition-all hover:scale-110 ${(qs?.confidenceRating || 0) >= r ? "opacity-100" : "opacity-30"}`}
             >
-              ⭐
+              <FaIcon icon={faStar} className="h-4 w-4 text-amber-400" />
             </button>
           ))}
         </div>

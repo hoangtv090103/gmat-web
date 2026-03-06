@@ -1,10 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { CircleIcon } from "lucide-react"
+import { faCircle } from "@fortawesome/free-solid-svg-icons"
 import { RadioGroup as RadioGroupPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import { FaIcon } from "@/components/ui/fa-icon"
 
 function RadioGroup({
   className,
@@ -36,7 +37,10 @@ function RadioGroupItem({
         data-slot="radio-group-indicator"
         className="relative flex items-center justify-center"
       >
-        <CircleIcon className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 fill-primary" />
+        <FaIcon
+          icon={faCircle}
+          className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 text-primary"
+        />
       </RadioGroupPrimitive.Indicator>
     </RadioGroupPrimitive.Item>
   )

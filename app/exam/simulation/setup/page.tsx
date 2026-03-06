@@ -2,12 +2,26 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronUp, ChevronDown, AlertTriangle, Clock, BookOpen, CheckCircle2, ArrowRight, GripVertical } from 'lucide-react';
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
+import {
+  faArrowRight,
+  faBookOpen,
+  faChartBar,
+  faChevronDown,
+  faChevronUp,
+  faCalculator,
+  faCircleCheck,
+  faClock,
+  faFont,
+  faGripVertical,
+  faTriangleExclamation,
+} from '@fortawesome/free-solid-svg-icons';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { FaIcon } from '@/components/ui/fa-icon';
 import {
   Select,
   SelectContent,
@@ -39,10 +53,10 @@ const SECTION_BADGE_COLORS: Record<SectionType, string> = {
   di: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
 };
 
-const SECTION_ICONS: Record<SectionType, string> = {
-  quant: '∑',
-  verbal: 'Aa',
-  di: '📊',
+const SECTION_ICONS: Record<SectionType, IconDefinition> = {
+  quant: faCalculator,
+  verbal: faFont,
+  di: faChartBar,
 };
 
 // ─── Setup Wizard ─────────────────────────────────────────────
@@ -222,7 +236,11 @@ export default function SimulationSetupPage() {
                       : 'bg-gray-700 text-gray-400'
                   }`}
                 >
-                  {step > n ? <CheckCircle2 className="w-3.5 h-3.5" /> : n}
+                  {step > n ? (
+                    <FaIcon icon={faCircleCheck} className="w-3.5 h-3.5" />
+                  ) : (
+                    n
+                  )}
                 </div>
                 {n < 3 && <div className={`w-8 h-px ${step > n ? 'bg-green-600/80' : 'bg-gray-700'}`} />}
               </div>
@@ -239,7 +257,9 @@ export default function SimulationSetupPage() {
             <div>
               <h2 className="text-xl font-semibold text-white mb-1">Step 1 — Section Order</h2>
               <p className="text-sm text-gray-400">
-                Drag the sections to choose your preferred order. Default: Quant → Verbal → DI.
+                Drag the sections to choose your preferred order. Default: Quant{' '}
+                <FaIcon icon={faArrowRight} className="mx-1 inline-block h-3 w-3 text-slate-400" /> Verbal{' '}
+                <FaIcon icon={faArrowRight} className="mx-1 inline-block h-3 w-3 text-slate-400" /> DI.
               </p>
             </div>
 
@@ -257,11 +277,11 @@ export default function SimulationSetupPage() {
                   } ${draggedIndex === index ? 'opacity-50' : 'opacity-100'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <GripVertical className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                    <FaIcon icon={faGripVertical} className="w-4 h-4 text-gray-500 flex-shrink-0" />
                     <div
                       className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-medium border ${SECTION_BADGE_COLORS[type]}`}
                     >
-                      {SECTION_ICONS[type]}
+                      <FaIcon icon={SECTION_ICONS[type]} className="text-slate-100" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
@@ -272,11 +292,11 @@ export default function SimulationSetupPage() {
                       </div>
                       <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
                         <span className="flex items-center gap-1">
-                          <BookOpen className="w-3 h-3" />
+                          <FaIcon icon={faBookOpen} className="w-3 h-3" />
                           {SECTION_RECOMMENDED_QUESTIONS[type]} questions
                         </span>
                         <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
+                          <FaIcon icon={faClock} className="w-3 h-3" />
                           45 min
                         </span>
                       </div>
@@ -287,14 +307,14 @@ export default function SimulationSetupPage() {
                         disabled={index === 0}
                         className="p-1 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       >
-                        <ChevronUp className="w-4 h-4 text-gray-300" />
+                        <FaIcon icon={faChevronUp} className="w-4 h-4 text-gray-300" />
                       </button>
                       <button
                         onClick={() => moveSection(index, 'down')}
                         disabled={index === sectionOrder.length - 1}
                         className="p-1 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       >
-                        <ChevronDown className="w-4 h-4 text-gray-300" />
+                        <FaIcon icon={faChevronDown} className="w-4 h-4 text-gray-300" />
                       </button>
                     </div>
                   </div>
@@ -307,7 +327,9 @@ export default function SimulationSetupPage() {
               {sectionOrder.map((t, i) => (
                 <span key={t}>
                   <span className="text-white">{SECTION_LABELS[t]}</span>
-                  {i < sectionOrder.length - 1 && <span className="mx-1 text-gray-600">→</span>}
+                  {i < sectionOrder.length - 1 && (
+                    <FaIcon icon={faArrowRight} className="mx-1 h-3 w-3 text-gray-600" />
+                  )}
                 </span>
               ))}
             </div>
@@ -317,7 +339,7 @@ export default function SimulationSetupPage() {
               onClick={() => setStep(2)}
             >
               Continue to Question Bank
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <FaIcon icon={faArrowRight} className="w-4 h-4 ml-2" />
             </Button>
           </>
         )}
@@ -355,7 +377,7 @@ export default function SimulationSetupPage() {
 
                       {setsForSection.length === 0 ? (
                         <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                          <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                          <FaIcon icon={faTriangleExclamation} className="w-4 h-4 text-amber-400 flex-shrink-0" />
                           <span className="text-sm text-amber-300">
                             No question sets found.{' '}
                             <button
@@ -398,7 +420,7 @@ export default function SimulationSetupPage() {
 
                       {warning && selectedSet && (
                         <div className="flex items-center gap-2 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                          <FaIcon icon={faTriangleExclamation} className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
                           <span className="text-xs text-amber-300">
                             This set has only {selectedSet.total_questions} questions — section will end early.
                           </span>
@@ -407,7 +429,7 @@ export default function SimulationSetupPage() {
 
                       {selectedSet && !warning && (
                         <div className="flex items-center gap-1.5 text-xs text-emerald-400">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <FaIcon icon={faCircleCheck} className="w-3.5 h-3.5" />
                           <span>
                             {selectedSet.total_questions} questions ready
                           </span>
@@ -433,7 +455,7 @@ export default function SimulationSetupPage() {
                 onClick={() => setStep(3)}
               >
                 Review &amp; Confirm
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <FaIcon icon={faArrowRight} className="w-4 h-4 ml-2" />
               </Button>
             </div>
           </>
@@ -494,7 +516,7 @@ export default function SimulationSetupPage() {
                   Optional 10-minute breaks
                 </Label>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Offered between sections 1→2 and 2→3
+                  Offered between sections 1<FaIcon icon={faArrowRight} className="mx-1 h-3 w-3 text-slate-400" />2 and 2<FaIcon icon={faArrowRight} className="mx-1 h-3 w-3 text-slate-400" />3
                 </p>
               </div>
               <Switch
@@ -508,7 +530,7 @@ export default function SimulationSetupPage() {
             {/* Warnings */}
             {sectionOrder.some(hasWarning) && (
               <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <FaIcon icon={faTriangleExclamation} className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-amber-300">
                   One or more sections have fewer questions than recommended. Those sections will end when questions run out.
                 </p>
@@ -535,7 +557,7 @@ export default function SimulationSetupPage() {
                 disabled={loading || !allSectionsAssigned}
               >
                 {loading ? 'Preparing…' : 'Begin Exam'}
-                {!loading && <ArrowRight className="w-4 h-4 ml-2" />}
+                {!loading && <FaIcon icon={faArrowRight} className="w-4 h-4 ml-2" />}
               </Button>
             </div>
           </>

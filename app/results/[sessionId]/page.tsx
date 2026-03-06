@@ -37,7 +37,22 @@ import {
   Cell,
   ReferenceLine,
 } from "recharts";
+import {
+  faArrowLeft,
+  faArrowRight,
+  faBookOpen,
+  faClock,
+  faDownload,
+  faGear,
+  faMap,
+  faPen,
+  faRepeat,
+  faCircleCheck,
+  faCircleXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { toast } from "sonner";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
+import { FaIcon } from "@/components/ui/fa-icon";
 
 function formatTimeShort(seconds: number): string {
   if (isNaN(seconds) || seconds < 0) return "0:00";
@@ -52,7 +67,11 @@ const CAT_COLORS = {
   Habit: "text-blue-400 bg-blue-400/10 border-blue-500/30",
 };
 
-const CAT_EMOJIS = { Content: "🔴", Process: "🟡", Habit: "🔵" };
+const CAT_ICONS: Record<ErrorCategory, IconDefinition> = {
+  Content: faBookOpen,
+  Process: faGear,
+  Habit: faRepeat,
+};
 
 export default function ResultsPage({
   params,
@@ -243,7 +262,8 @@ export default function ResultsPage({
         onClick={() => router.push("/")}
         className="mb-6 text-muted-foreground"
       >
-        ← Dashboard
+        <FaIcon icon={faArrowLeft} className="mr-2 h-3.5 w-3.5" />
+        Dashboard
       </Button>
 
       {/* ── Score Summary ── */}
@@ -321,7 +341,11 @@ export default function ResultsPage({
                       <TableCell className="text-sm">
                         {q.topic || q.question_type}{" "}
                         {r.triage_triggered && (
-                          <span title="Triage triggered">⏰</span>
+                          <FaIcon
+                            icon={faClock}
+                            className="ml-2 inline-block h-3.5 w-3.5 text-amber-400"
+                            title="Triage triggered"
+                          />
                         )}
                       </TableCell>
                       <TableCell className={timeColor}>
@@ -335,7 +359,7 @@ export default function ResultsPage({
                         >
                           {r.selected_answer || "—"}
                         </span>
-                        <span className="text-slate-500 mx-2">→</span>
+                        <FaIcon icon={faArrowRight} className="mx-2 h-3 w-3 text-slate-500" />
                         <span className="text-green-400">
                           {q.correct_answer}
                         </span>
@@ -344,7 +368,8 @@ export default function ResultsPage({
                             variant="outline"
                             className={`ml-3 ${CAT_COLORS[r.error_category]}`}
                           >
-                            {CAT_EMOJIS[r.error_category]} {r.error_category}
+                            <FaIcon icon={CAT_ICONS[r.error_category]} className="mr-2 h-3 w-3" />
+                            {r.error_category}
                           </Badge>
                         )}
                         {!r.error_category && !r.is_correct && (
@@ -355,7 +380,11 @@ export default function ResultsPage({
                         )}
                       </TableCell>
                       <TableCell className="text-lg">
-                        {r.is_correct ? "✅" : "❌"}
+                        {r.is_correct ? (
+                          <FaIcon icon={faCircleCheck} className="h-4 w-4 text-emerald-400" />
+                        ) : (
+                          <FaIcon icon={faCircleXmark} className="h-4 w-4 text-red-400" />
+                        )}
                       </TableCell>
                     </TableRow>
                     {isExpanded && (
@@ -409,8 +438,16 @@ export default function ResultsPage({
                                         isCorrect ? "bg-green-600 text-white" : isWrongSelected ? "bg-red-600 text-white" : "bg-slate-700 text-slate-400"
                                       }`}>{letter}</span>
                                       <span className={`leading-relaxed ${isCorrect ? "text-green-200" : isWrongSelected ? "text-red-200" : "text-slate-300"}`}>{text}</span>
-                                      {isCorrect && <span className="ml-auto text-green-400 flex-shrink-0">✓</span>}
-                                      {isWrongSelected && <span className="ml-auto text-red-400 flex-shrink-0">✗</span>}
+                                      {isCorrect && (
+                                        <span className="ml-auto text-green-400 flex-shrink-0">
+                                          <FaIcon icon={faCircleCheck} className="h-4 w-4" />
+                                        </span>
+                                      )}
+                                      {isWrongSelected && (
+                                        <span className="ml-auto text-red-400 flex-shrink-0">
+                                          <FaIcon icon={faCircleXmark} className="h-4 w-4" />
+                                        </span>
+                                      )}
                                     </div>
                                   );
                                 })}
@@ -421,7 +458,10 @@ export default function ResultsPage({
                               Object.keys(r.passage_map).length > 0 && (
                                 <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-xl">
                                   <h4 className="text-sm font-semibold text-purple-400 mb-2">
-                                    🗺️ Passage Map
+                                    <span className="inline-flex items-center gap-2">
+                                      <FaIcon icon={faMap} className="h-4 w-4" />
+                                      Passage Map
+                                    </span>
                                   </h4>
                                   <div className="space-y-2 text-sm text-slate-300">
                                     {Object.entries(r.passage_map).map(
@@ -442,7 +482,10 @@ export default function ResultsPage({
                             {r.missing_link && (
                               <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl">
                                 <h4 className="text-sm font-semibold text-blue-400 mb-1">
-                                  📝 My Missing Link
+                                  <span className="inline-flex items-center gap-2">
+                                    <FaIcon icon={faPen} className="h-4 w-4" />
+                                    My Missing Link
+                                  </span>
                                 </h4>
                                 <p className="text-sm text-slate-300 leading-relaxed">
                                   {r.missing_link}
@@ -489,7 +532,8 @@ export default function ResultsPage({
                                             : "border-slate-700 hover:bg-slate-800 text-slate-400"
                                         }`}
                                       >
-                                        {CAT_EMOJIS[cat]} {cat}
+                                        <FaIcon icon={CAT_ICONS[cat]} className="mr-2 h-3 w-3" />
+                                        {cat}
                                       </button>
                                     ))}
                                   </div>
@@ -538,7 +582,8 @@ export default function ResultsPage({
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
-                📓 Smart Error Log
+                <FaIcon icon={faBookOpen} className="h-4 w-4 text-slate-300" />
+                Smart Error Log
                 {uncategorizedCount > 0 && (
                   <Badge
                     variant="secondary"
@@ -550,7 +595,8 @@ export default function ResultsPage({
               </CardTitle>
             </div>
             <Button size="sm" variant="outline" onClick={exportErrorLogCSV}>
-              📥 Export CSV
+              <FaIcon icon={faDownload} className="mr-2 h-4 w-4" />
+              Export CSV
             </Button>
           </CardHeader>
           <CardContent>
@@ -567,7 +613,13 @@ export default function ResultsPage({
                       : "border-slate-800 hover:bg-slate-800 text-slate-400"
                   }`}
                 >
-                  {cat !== "All" && CAT_EMOJIS[cat as ErrorCategory]} {cat}
+                  {cat !== "All" && (
+                    <FaIcon
+                      icon={CAT_ICONS[cat as ErrorCategory]}
+                      className="mr-2 h-3 w-3"
+                    />
+                  )}
+                  {cat}
                 </button>
               ))}
             </div>
@@ -603,11 +655,12 @@ export default function ResultsPage({
                             variant="outline"
                             className={CAT_COLORS[r.error_category]}
                           >
-                            {CAT_EMOJIS[r.error_category]} {r.error_category}
+                            <FaIcon icon={CAT_ICONS[r.error_category]} className="mr-2 h-3 w-3" />
+                            {r.error_category}
                           </Badge>
                         ) : (
                           <span className="text-amber-500 text-xs flex items-center gap-1">
-                            <span className="animate-pulse">●</span>{" "}
+                            <span className="animate-pulse">•</span>{" "}
                             Uncategorized
                           </span>
                         )}
@@ -763,7 +816,7 @@ export default function ResultsPage({
           onClick={() => router.push("/analytics")}
           className="bg-blue-600 hover:bg-blue-700"
         >
-          Analytics →
+          Analytics <FaIcon icon={faArrowRight} className="ml-2 h-3.5 w-3.5" />
         </Button>
       </div>
     </div>

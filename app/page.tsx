@@ -13,9 +13,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import {
+  faArrowLeft,
+  faArrowRight,
+  faArrowsUpDown,
+  faBookOpen,
+  faBullseye,
+  faChartLine,
+  faClock,
+  faEye,
+  faMagnifyingGlass,
+  faPen,
+  faSliders,
+  faUpload,
+  faCircleCheck,
+  faFile,
+} from "@fortawesome/free-solid-svg-icons";
 import { getQuestionSets, getAllSessions, getAllResponses } from "@/lib/db";
 import { QuestionSet, ExamSession, QuestionResponse } from "@/types/gmat";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
+import { FaIcon } from "@/components/ui/fa-icon";
 
 type SectionFilter = "all" | "Quantitative" | "Verbal" | "Data Insights";
 type SortOption = "newest" | "oldest" | "name-az" | "name-za" | "questions-desc" | "questions-asc";
@@ -147,7 +164,8 @@ export default function DashboardPage() {
               className="flex-1"
             >
               <Button className="w-full bg-blue-600 hover:bg-blue-700 text-xs h-8">
-                ⏱ Timed
+                <FaIcon icon={faClock} className="mr-2 h-3.5 w-3.5" />
+                Timed
               </Button>
             </Link>
             <Link
@@ -158,7 +176,8 @@ export default function DashboardPage() {
                 variant="outline"
                 className="w-full border-green-500/30 hover:bg-green-500/10 text-green-400 text-xs h-8"
               >
-                📝 Practice
+                <FaIcon icon={faPen} className="mr-2 h-3.5 w-3.5" />
+                Practice
               </Button>
             </Link>
             <Link
@@ -169,7 +188,8 @@ export default function DashboardPage() {
                 variant="outline"
                 className="w-full border-purple-500/30 hover:bg-purple-500/10 text-purple-400 text-xs h-8"
               >
-                👁 Review
+                <FaIcon icon={faEye} className="mr-2 h-3.5 w-3.5" />
+                Review
               </Button>
             </Link>
           </div>
@@ -259,27 +279,13 @@ export default function DashboardPage() {
                 variant="outline"
                 className="border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 transition-all"
               >
-                🎯 Mock Exam
+                <FaIcon icon={faBullseye} className="mr-2 h-4 w-4" />
+                Mock Exam
               </Button>
             </Link>
             <Link href="/import">
               <Button className="bg-blue-600 hover:bg-blue-700 transition-all duration-200 shadow-lg shadow-blue-600/20">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="mr-2"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
+                <FaIcon icon={faUpload} className="mr-2 h-4 w-4" />
                 Import Questions
               </Button>
             </Link>
@@ -288,22 +294,7 @@ export default function DashboardPage() {
                 variant="outline"
                 className="border-blue-500/30 hover:bg-blue-500/10 transition-all"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="mr-2"
-                >
-                  <line x1="18" y1="20" x2="18" y2="10" />
-                  <line x1="12" y1="20" x2="12" y2="4" />
-                  <line x1="6" y1="20" x2="6" y2="14" />
-                </svg>
+                <FaIcon icon={faChartLine} className="mr-2 h-4 w-4" />
                 Analytics
               </Button>
             </Link>
@@ -313,36 +304,38 @@ export default function DashboardPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 animate-slide-up">
-        {[
+        {(
+          [
           {
             label: "Question Sets",
             value: sets.length,
-            icon: "📚",
+            icon: faBookOpen,
             color: "blue",
           },
           {
             label: "Total Sessions",
             value: totalSessions,
-            icon: "🎯",
+            icon: faBullseye,
             color: "green",
           },
           {
             label: "Avg Accuracy",
             value: `${avgAccuracy}%`,
-            icon: "📊",
+            icon: faChartLine,
             color: "purple",
           },
           {
             label: "Avg Time/Q",
             value: avgTimePerQ ? `${avgTimePerQ}s` : "—",
-            icon: "⏱️",
+            icon: faClock,
             color: "amber",
           },
-        ].map((stat) => (
+        ] as { label: string; value: string | number; icon: IconDefinition; color: string }[]
+        ).map((stat) => (
           <Card key={stat.label} className="glass-card">
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{stat.icon}</span>
+                <FaIcon icon={stat.icon} className="h-6 w-6 text-slate-200" />
                 <div>
                   <p className="text-2xl font-bold">{stat.value}</p>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
@@ -356,8 +349,14 @@ export default function DashboardPage() {
       {/* Additional Stats */}
       <div className="glass-card rounded-lg p-4 mb-8 flex items-center justify-between">
         <div className="flex items-center gap-6 text-sm text-muted-foreground">
-          <span>📝 {totalQuestions} total questions imported</span>
-          <span>✅ {completedSessions.length} completed exams</span>
+          <span className="inline-flex items-center gap-2">
+            <FaIcon icon={faPen} className="h-4 w-4 text-slate-300" />
+            {totalQuestions} total questions imported
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <FaIcon icon={faCircleCheck} className="h-4 w-4 text-emerald-400" />
+            {completedSessions.length} completed exams
+          </span>
         </div>
       </div>
 
@@ -369,7 +368,10 @@ export default function DashboardPage() {
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             {/* Search */}
             <div className="relative flex-1 sm:w-56">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <FaIcon
+                icon={faMagnifyingGlass}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
+              />
               <Input
                 placeholder="Search by name, topics, section…"
                 value={searchQuery}
@@ -381,7 +383,7 @@ export default function DashboardPage() {
             {/* Filter by section */}
             <Select value={sectionFilter} onValueChange={(v) => setSectionFilter(v as SectionFilter)}>
               <SelectTrigger className="w-full sm:w-40 h-9 bg-slate-800/50 border-slate-700 text-sm">
-                <SlidersHorizontal className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
+                <FaIcon icon={faSliders} className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
                 <SelectValue placeholder="Section" />
               </SelectTrigger>
               <SelectContent>
@@ -395,14 +397,18 @@ export default function DashboardPage() {
             {/* Sort */}
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
               <SelectTrigger className="w-full sm:w-44 h-9 bg-slate-800/50 border-slate-700 text-sm">
-                <ArrowUpDown className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
+                <FaIcon icon={faArrowsUpDown} className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="newest">Newest first</SelectItem>
                 <SelectItem value="oldest">Oldest first</SelectItem>
-                <SelectItem value="name-az">Name A → Z</SelectItem>
-                <SelectItem value="name-za">Name Z → A</SelectItem>
+                <SelectItem value="name-az">
+                  Name A <FaIcon icon={faArrowRight} className="mx-2 h-3 w-3" /> Z
+                </SelectItem>
+                <SelectItem value="name-za">
+                  Name Z <FaIcon icon={faArrowLeft} className="mx-2 h-3 w-3" /> A
+                </SelectItem>
                 <SelectItem value="questions-desc">Most questions</SelectItem>
                 <SelectItem value="questions-asc">Fewest questions</SelectItem>
               </SelectContent>
@@ -414,7 +420,9 @@ export default function DashboardPage() {
       {sets.length === 0 ? (
         <Card className="glass-card border-dashed border-2 border-blue-500/20">
           <CardContent className="py-16 text-center">
-            <div className="text-5xl mb-4">📄</div>
+            <div className="mb-4 flex justify-center">
+              <FaIcon icon={faFile} className="h-10 w-10 text-slate-400" />
+            </div>
             <h3 className="text-xl font-semibold mb-2">No Question Sets Yet</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
               Import your GMAT question files (.docx, .pdf, .txt) to get started

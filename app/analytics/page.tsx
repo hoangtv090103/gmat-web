@@ -6,6 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  faArrowLeft,
+  faArrowRight,
+  faArrowsRotate,
+  faBullseye,
+  faChartLine,
+  faCircleCheck,
+  faFlag,
+  faMagnifyingGlass,
+  faTriangleExclamation,
+} from "@fortawesome/free-solid-svg-icons";
+import {
   Table,
   TableBody,
   TableCell,
@@ -33,6 +44,7 @@ import {
   QuestionType,
   SectionType,
 } from "@/types/gmat";
+import { FaIcon } from "@/components/ui/fa-icon";
 import {
   LineChart,
   Line,
@@ -466,7 +478,8 @@ export default function AnalyticsPage() {
           onClick={() => router.push("/")}
           className="mb-4 text-muted-foreground"
         >
-          ← Dashboard
+          <FaIcon icon={faArrowLeft} className="mr-2 h-3.5 w-3.5" />
+          Dashboard
         </Button>
         <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
           Performance Analytics
@@ -497,7 +510,9 @@ export default function AnalyticsPage() {
       {completed.length === 0 ? (
         <Card className="glass-card border-dashed border-2 border-blue-500/20">
           <CardContent className="py-16 text-center">
-            <div className="text-5xl mb-4">📊</div>
+                <div className="mb-4 flex justify-center">
+                  <FaIcon icon={faChartLine} className="h-10 w-10 text-slate-400" />
+                </div>
             <h3 className="text-xl font-semibold mb-2">No Data Yet</h3>
             <p className="text-muted-foreground mb-6">
               Complete some exam sessions to see analytics
@@ -519,7 +534,8 @@ export default function AnalyticsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-sm flex items-center gap-2 text-indigo-400">
-                      🎯 Simulated Scores
+                      <FaIcon icon={faBullseye} className="h-4 w-4" />
+                      Simulated Scores
                     </CardTitle>
                     <p className="text-xs text-muted-foreground mt-1">
                       {completedSimExams.length} exam{completedSimExams.length > 1 ? 's' : ''} · Target: 680
@@ -603,7 +619,7 @@ export default function AnalyticsPage() {
                             {row.firstSessionId && (
                               <Button variant="ghost" size="sm" className="text-xs text-blue-400"
                                 onClick={() => router.push(`/results/${row.firstSessionId}`)}>
-                                Review →
+                                Review <FaIcon icon={faArrowRight} className="ml-2 h-3 w-3" />
                               </Button>
                             )}
                           </TableCell>
@@ -731,7 +747,10 @@ export default function AnalyticsPage() {
                 {/* Answer Changes */}
                 <div className="glass rounded-lg p-4">
                   <h4 className="text-xs font-semibold text-yellow-400 mb-3">
-                    🔄 Answer Changes
+                    <span className="inline-flex items-center gap-2">
+                      <FaIcon icon={faArrowsRotate} className="h-3.5 w-3.5" />
+                      Answer Changes
+                    </span>
                   </h4>
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div>
@@ -754,16 +773,27 @@ export default function AnalyticsPage() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2 text-center">
-                    {changeAnalysis.helped >= changeAnalysis.hurt
-                      ? "✅ Changing answers tends to help you"
-                      : "⚠️ Trust your first instinct more"}
+                    {changeAnalysis.helped >= changeAnalysis.hurt ? (
+                      <span className="inline-flex items-center gap-2">
+                        <FaIcon icon={faCircleCheck} className="h-3.5 w-3.5 text-emerald-400" />
+                        Changing answers tends to help you
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-2">
+                        <FaIcon icon={faTriangleExclamation} className="h-3.5 w-3.5 text-amber-400" />
+                        Trust your first instinct more
+                      </span>
+                    )}
                   </p>
                 </div>
 
                 {/* Flag Analysis */}
                 <div className="glass rounded-lg p-4">
                   <h4 className="text-xs font-semibold text-blue-400 mb-3">
-                    🚩 Flag vs Accuracy
+                    <span className="inline-flex items-center gap-2">
+                      <FaIcon icon={faFlag} className="h-3.5 w-3.5" />
+                      Flag vs Accuracy
+                    </span>
                   </h4>
                   <div className="grid grid-cols-2 gap-4 text-center">
                     <div>
@@ -811,7 +841,7 @@ export default function AnalyticsPage() {
                       domain={[0, 1]}
                       tick={{ fill: "#94a3b8", fontSize: 11 }}
                       ticks={[0, 1]}
-                      tickFormatter={(v) => (v === 1 ? "✓" : "✗")}
+                      tickFormatter={(v) => (v === 1 ? "Correct" : "Wrong")}
                     />
                     <Tooltip {...tooltipStyle} />
                     <Scatter data={scatterData}>
@@ -833,7 +863,8 @@ export default function AnalyticsPage() {
             <Card className="glass-card mb-8 animate-slide-up border-amber-500/30">
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2 text-amber-500">
-                  🔍 Detected Error Patterns
+                  <FaIcon icon={faMagnifyingGlass} className="h-4 w-4" />
+                  Detected Error Patterns
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
                   Repeated mistakes across multiple sessions
@@ -894,7 +925,10 @@ export default function AnalyticsPage() {
             <Card className="glass-card mb-8 animate-slide-up">
               <CardHeader>
                 <CardTitle className="text-sm">
-                  ⚠️ Weakness Areas (Bottom 3)
+                  <span className="inline-flex items-center gap-2">
+                    <FaIcon icon={faTriangleExclamation} className="h-4 w-4 text-amber-400" />
+                    Weakness Areas (Bottom 3)
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -993,7 +1027,7 @@ export default function AnalyticsPage() {
                             onClick={() => router.push(`/results/${s.id}`)}
                             className="text-xs text-blue-400"
                           >
-                            View →
+                            View <FaIcon icon={faArrowRight} className="ml-2 h-3 w-3" />
                           </Button>
                         </TableCell>
                       </TableRow>
