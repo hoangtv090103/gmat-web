@@ -658,6 +658,7 @@ export default function ResultsPage({
                     borderRadius: 8,
                   }}
                   labelStyle={{ color: "#94a3b8" }}
+                  itemStyle={{ color: "#e2e8f0" }}
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   formatter={
                     ((value: any, _: any, entry: any) => [
@@ -703,6 +704,8 @@ export default function ResultsPage({
                     border: "1px solid #1e293b",
                     borderRadius: 8,
                   }}
+                  labelStyle={{ color: "#94a3b8" }}
+                  itemStyle={{ color: "#e2e8f0" }}
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   formatter={
                     ((value: any) => [
