@@ -1,6 +1,7 @@
 import {
   QuestionSet,
   Question,
+  Passage,
   ExamSession,
   QuestionResponse,
   TrackingEvent,
@@ -13,6 +14,7 @@ import { getSupabase, isSupabaseConfigured } from './supabase';
 const STORAGE_KEYS = {
   QUESTION_SETS: 'gmat_question_sets',
   QUESTIONS: 'gmat_questions',
+  PASSAGES: 'gmat_passages',
   SESSIONS: 'gmat_sessions',
   RESPONSES: 'gmat_responses',
   EVENTS: 'gmat_events',
@@ -36,11 +38,29 @@ function setLocal<T>(key: string, data: T[]): void {
 
 // ─── Question Sets ───────────────────────────────────────────
 
+// Input questions may carry a temporary `passage_text` field (used to create
+// passage records). After saving, questions reference passages by UUID FK.
+type QuestionInput = Omit<Question, 'id' | 'set_id' | 'created_at'> & {
+  passage_text?: string;
+};
+
 export async function saveQuestionSet(
   set: Omit<QuestionSet, 'id' | 'created_at'>,
-  questions: Array<Omit<Question, 'id' | 'set_id' | 'created_at'>>
+  questions: Array<QuestionInput>
 ): Promise<{ setId: string; questionCount: number }> {
   const supabase = getSupabase();
+
+  // Build a map of temporary passage_id text key → passage_text for questions
+  // that carry passage data. The temporary key is the string value of passage_id
+  // on the question object (e.g. "rc-passage-1").
+  const passageMap = new Map<string, string>(); // tempKey → passage_text
+  for (const q of questions) {
+    if (q.passage_id && q.passage_text) {
+      if (!passageMap.has(q.passage_id)) {
+        passageMap.set(q.passage_id, q.passage_text);
+      }
+    }
+  }
 
   if (supabase && isSupabaseConfigured()) {
     const { data: setData, error: setError } = await supabase
@@ -50,19 +70,46 @@ export async function saveQuestionSet(
       .single();
 
     if (setError) throw new Error(`Failed to save question set: ${setError.message}`);
+    const setId = setData.id as string;
 
-    const questionsWithSetId = questions.map((q) => ({
-      ...q,
-      set_id: setData.id,
-    }));
+    // Insert passages and map old text key → new UUID
+    const tempKeyToUuid = new Map<string, string>();
+    if (passageMap.size > 0) {
+      const passageRows = Array.from(passageMap.entries()).map(([, text]) => ({
+        set_id: setId,
+        passage_text: text,
+      }));
+      const { data: passageData, error: pErr } = await supabase
+        .from('passages')
+        .insert(passageRows)
+        .select('id, passage_text');
+      if (pErr) throw new Error(`Failed to save passages: ${pErr.message}`);
 
-    const { error: qError } = await supabase.from('questions').insert(questionsWithSetId);
+      // Re-map: find which UUID corresponds to which temp key via passage_text match
+      for (const [tempKey, text] of passageMap.entries()) {
+        const row = passageData?.find((p: { id: string; passage_text: string }) => p.passage_text === text);
+        if (row) tempKeyToUuid.set(tempKey, row.id);
+      }
+    }
+
+    // Build question rows: remap passage_id to UUID, strip passage_text
+    const questionRows = questions.map((q) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { passage_text: _pt, ...rest } = q;
+      return {
+        ...rest,
+        set_id: setId,
+        passage_id: q.passage_id ? (tempKeyToUuid.get(q.passage_id) ?? null) : null,
+      };
+    });
+
+    const { error: qError } = await supabase.from('questions').insert(questionRows);
     if (qError) throw new Error(`Failed to save questions: ${qError.message}`);
 
-    return { setId: setData.id, questionCount: questions.length };
+    return { setId, questionCount: questions.length };
   }
 
-  // Local-only fallback
+  // ── localStorage fallback ────────────────────────────────
   const setId = crypto.randomUUID();
   const fullSet: QuestionSet = {
     ...set,
@@ -70,12 +117,30 @@ export async function saveQuestionSet(
     created_at: new Date().toISOString(),
   };
 
-  const fullQuestions: Question[] = questions.map((q) => ({
-    ...q,
-    id: crypto.randomUUID(),
-    set_id: setId,
-    created_at: new Date().toISOString(),
-  }));
+  // Create passage records in localStorage
+  const tempKeyToUuid = new Map<string, string>();
+  if (passageMap.size > 0) {
+    const existingPassages = getLocal<Passage>(STORAGE_KEYS.PASSAGES);
+    const newPassages: Passage[] = [];
+    for (const [tempKey, text] of passageMap.entries()) {
+      const passageId = crypto.randomUUID();
+      tempKeyToUuid.set(tempKey, passageId);
+      newPassages.push({ id: passageId, set_id: setId, passage_text: text, created_at: new Date().toISOString() });
+    }
+    setLocal(STORAGE_KEYS.PASSAGES, [...existingPassages, ...newPassages]);
+  }
+
+  const fullQuestions: Question[] = questions.map((q) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passage_text: _pt, ...rest } = q;
+    return {
+      ...rest,
+      id: crypto.randomUUID(),
+      set_id: setId,
+      created_at: new Date().toISOString(),
+      passage_id: q.passage_id ? (tempKeyToUuid.get(q.passage_id) ?? undefined) : undefined,
+    };
+  });
 
   const existingSets = getLocal<QuestionSet>(STORAGE_KEYS.QUESTION_SETS);
   setLocal(STORAGE_KEYS.QUESTION_SETS, [...existingSets, fullSet]);
@@ -119,6 +184,39 @@ export async function getQuestionsBySetId(setId: string): Promise<Question[]> {
   return getLocal<Question>(STORAGE_KEYS.QUESTIONS)
     .filter((q) => q.set_id === setId)
     .sort((a, b) => a.question_number - b.question_number);
+}
+
+// ─── Passages ────────────────────────────────────────────────
+
+export async function getPassagesBySetId(setId: string): Promise<Passage[]> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('passages')
+      .select('*')
+      .eq('set_id', setId);
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
+  return getLocal<Passage>(STORAGE_KEYS.PASSAGES).filter((p) => p.set_id === setId);
+}
+
+export async function getPassageById(passageId: string): Promise<Passage | null> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('passages')
+      .select('*')
+      .eq('id', passageId)
+      .single();
+    if (error) return null;
+    return data;
+  }
+
+  return getLocal<Passage>(STORAGE_KEYS.PASSAGES).find((p) => p.id === passageId) || null;
 }
 
 // ─── Exam Sessions ───────────────────────────────────────────

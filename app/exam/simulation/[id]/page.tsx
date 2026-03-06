@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React, { useEffect, useRef, useState, useCallback, use } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
+import React, { useEffect, useRef, useState, useCallback, use } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import {
   getQuestionsBySetId,
   createSession,
@@ -13,15 +13,21 @@ import {
   updateSession,
   updateSimulationSection,
   updateSimulationExam,
-} from '@/lib/db';
+  getPassagesBySetId,
+} from "@/lib/db";
 import {
   useSimulationStore,
   selectCurrentSection,
   selectIsLastSection,
   SECTION_LABELS,
   SectionResult,
-} from '@/store/simulationStore';
-import { Question, AnswerChange, TrackingEventType } from '@/types/gmat';
+} from "@/store/simulationStore";
+import {
+  Question,
+  AnswerChange,
+  TrackingEventType,
+  Passage,
+} from "@/types/gmat";
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -60,22 +66,49 @@ function TimerRing({ startMs, totalSecs, onExpire }: TimerRingProps) {
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - frac);
 
-  let color = '#3B82F6';
+  let color = "#3B82F6";
   let pulse = false;
-  if (remaining <= 0) { color = '#EF4444'; pulse = true; }
-  else if (elapsed >= 90) { color = '#F59E0B'; }
-  else if (elapsed >= Math.floor(totalSecs * 0.75)) { color = '#EF4444'; pulse = true; }
+  if (remaining <= 0) {
+    color = "#EF4444";
+    pulse = true;
+  } else if (elapsed >= 90) {
+    color = "#F59E0B";
+  } else if (elapsed >= Math.floor(totalSecs * 0.75)) {
+    color = "#EF4444";
+    pulse = true;
+  }
 
   return (
-    <div className={`relative w-12 h-12 flex-shrink-0 ${pulse ? 'animate-pulse' : ''}`}>
+    <div
+      className={`relative w-12 h-12 flex-shrink-0 ${pulse ? "animate-pulse" : ""}`}
+    >
       <svg className="w-full h-full -rotate-90" viewBox="0 0 48 48">
-        <circle cx="24" cy="24" r={radius} fill="none" stroke="#1e293b" strokeWidth="4" />
-        <circle cx="24" cy="24" r={radius} fill="none" stroke={color} strokeWidth="4"
-          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 0.25s linear, stroke 0.3s' }} />
+        <circle
+          cx="24"
+          cy="24"
+          r={radius}
+          fill="none"
+          stroke="#1e293b"
+          strokeWidth="4"
+        />
+        <circle
+          cx="24"
+          cy="24"
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth="4"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 0.25s linear, stroke 0.3s" }}
+        />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold" style={{ color }}>
-        {remaining > 0 ? remaining : '!'}
+      <span
+        className="absolute inset-0 flex items-center justify-center text-xs font-bold"
+        style={{ color }}
+      >
+        {remaining > 0 ? remaining : "!"}
       </span>
     </div>
   );
@@ -92,7 +125,12 @@ function TriageBanner({ onDismiss }: { onDismiss: () => void }) {
           <p className="text-amber-200 text-sm flex-1">
             2 minutes. Make your best guess and move on — do not spiral.
           </p>
-          <Button variant="ghost" size="sm" className="text-amber-400 hover:text-amber-200 text-xs h-8 flex-shrink-0" onClick={onDismiss}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-amber-400 hover:text-amber-200 text-xs h-8 flex-shrink-0"
+            onClick={onDismiss}
+          >
             Dismiss
           </Button>
         </div>
@@ -109,7 +147,11 @@ interface SectionTimerProps {
   sectionLabel: string;
 }
 
-function SectionTimer({ startedAt, onExpire, sectionLabel }: SectionTimerProps) {
+function SectionTimer({
+  startedAt,
+  onExpire,
+  sectionLabel,
+}: SectionTimerProps) {
   const [remaining, setRemaining] = useState(SECTION_TIMER_SECS);
   const onExpireRef = useRef(onExpire);
   onExpireRef.current = onExpire;
@@ -128,7 +170,7 @@ function SectionTimer({ startedAt, onExpire, sectionLabel }: SectionTimerProps) 
       // Warning toasts
       if (rem <= 60 && !warned1Ref.current) {
         warned1Ref.current = true;
-        toast.warning('⚠️ 1 minute remaining', { duration: 4000 });
+        toast.warning("⚠️ 1 minute remaining", { duration: 4000 });
       } else if (rem <= 300 && !warned5Ref.current) {
         warned5Ref.current = true;
       } else if (rem <= 600 && !warned10Ref.current) {
@@ -147,17 +189,24 @@ function SectionTimer({ startedAt, onExpire, sectionLabel }: SectionTimerProps) 
 
   const mins = Math.floor(remaining / 60);
   const secs = Math.floor(remaining % 60);
-  const formatted = `${mins}:${secs.toString().padStart(2, '0')}`;
+  const formatted = `${mins}:${secs.toString().padStart(2, "0")}`;
 
   const colorClass =
-    remaining <= 60 ? 'text-red-400 animate-pulse' :
-    remaining <= 300 ? 'text-red-400' :
-    remaining <= 600 ? 'text-amber-400' :
-    'text-slate-200';
+    remaining <= 60
+      ? "text-red-400 animate-pulse"
+      : remaining <= 300
+        ? "text-red-400"
+        : remaining <= 600
+          ? "text-amber-400"
+          : "text-slate-200";
 
   return (
     <div className="flex flex-col items-center">
-      <span className={`font-mono text-2xl font-bold tabular-nums ${colorClass}`}>{formatted}</span>
+      <span
+        className={`font-mono text-2xl font-bold tabular-nums ${colorClass}`}
+      >
+        {formatted}
+      </span>
       <span className="text-xs text-slate-500 mt-0.5">{sectionLabel}</span>
     </div>
   );
@@ -213,30 +262,37 @@ function SectionSummary({
           <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
             <div className="text-2xl font-bold text-white">
               {sectionResult.rawCorrect}
-              <span className="text-lg text-slate-400">/{sectionResult.rawTotal}</span>
+              <span className="text-lg text-slate-400">
+                /{sectionResult.rawTotal}
+              </span>
             </div>
-            <div className="text-xs text-slate-400 mt-1">Questions answered</div>
+            <div className="text-xs text-slate-400 mt-1">
+              Questions answered
+            </div>
           </div>
           <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
-            <div className="text-2xl font-bold text-amber-400">{sectionResult.questionsSkipped}</div>
+            <div className="text-2xl font-bold text-amber-400">
+              {sectionResult.questionsSkipped}
+            </div>
             <div className="text-xs text-slate-400 mt-1">Skipped</div>
           </div>
           <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
             <div className="text-lg font-bold text-white font-mono">
-              {timeMins}:{timeSecs.toString().padStart(2, '0')}
+              {timeMins}:{timeSecs.toString().padStart(2, "0")}
             </div>
             <div className="text-xs text-slate-400 mt-1">Time used</div>
           </div>
           <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
             <div className="text-lg font-bold text-emerald-400 font-mono">
-              {remMins}:{remSecs.toString().padStart(2, '0')}
+              {remMins}:{remSecs.toString().padStart(2, "0")}
             </div>
             <div className="text-xs text-slate-400 mt-1">Time remaining</div>
           </div>
         </div>
 
         <p className="text-xs text-center text-slate-500">
-          No per-question review available here — access full review after the exam.
+          No per-question review available here — access full review after the
+          exam.
         </p>
 
         {/* Actions */}
@@ -281,13 +337,24 @@ function SectionSummary({
 
 // ─── Section Countdown Overlay ────────────────────────────────
 
-function SectionCountdown({ sectionNumber, label, onDone }: { sectionNumber: number; label: string; onDone: () => void }) {
+function SectionCountdown({
+  sectionNumber,
+  label,
+  onDone,
+}: {
+  sectionNumber: number;
+  label: string;
+  onDone: () => void;
+}) {
   const [count, setCount] = useState(3);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
 
   useEffect(() => {
-    if (count <= 0) { onDoneRef.current(); return; }
+    if (count <= 0) {
+      onDoneRef.current();
+      return;
+    }
     const t = setTimeout(() => setCount((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [count]);
@@ -295,9 +362,13 @@ function SectionCountdown({ sectionNumber, label, onDone }: { sectionNumber: num
   return (
     <div className="min-h-screen bg-[#0A1628] flex items-center justify-center">
       <div className="text-center space-y-4">
-        <p className="text-slate-400 text-sm uppercase tracking-widest">Section {sectionNumber}</p>
+        <p className="text-slate-400 text-sm uppercase tracking-widest">
+          Section {sectionNumber}
+        </p>
         <h2 className="text-2xl font-semibold text-white">{label}</h2>
-        <div className="text-7xl font-bold text-indigo-400 tabular-nums my-6">{count || '→'}</div>
+        <div className="text-7xl font-bold text-indigo-400 tabular-nums my-6">
+          {count || "→"}
+        </div>
         <p className="text-slate-500 text-sm">Starting now…</p>
       </div>
     </div>
@@ -325,7 +396,11 @@ type PendingTrackingEvent = {
 
 // ─── Main Simulation Exam Page ────────────────────────────────
 
-export default function SimulationExamPage({ params }: { params: Promise<{ id: string }> }) {
+export default function SimulationExamPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id: simulationId } = use(params);
   const router = useRouter();
 
@@ -349,15 +424,23 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
 
   // ── Local state ───────────────────────────────────────────
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [passages, setPassages] = useState<Passage[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [questionStates, setQuestionStates] = useState<Record<number, LocalQuestionState>>({});
+  const [questionStates, setQuestionStates] = useState<
+    Record<number, LocalQuestionState>
+  >({});
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [pendingEvents, setPendingEvents] = useState<PendingTrackingEvent[]>([]);
+  const [pendingEvents, setPendingEvents] = useState<PendingTrackingEvent[]>(
+    [],
+  );
   const [sessionStartMs, setSessionStartMs] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
   const [showCountdown, setShowCountdown] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [sectionResult, setSectionResult] = useState<SectionResult | null>(null);
+  const [sectionResult, setSectionResult] = useState<SectionResult | null>(
+    null,
+  );
 
   // Triage
   const [showTriage, setShowTriage] = useState(false);
@@ -369,17 +452,17 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
 
   // ── Guard: redirect if simulationId doesn't match ─────────
   useEffect(() => {
-    if (!simState.simulationId && status === 'idle') {
-      router.replace('/');
+    if (!simState.simulationId && status === "idle") {
+      router.replace("/");
     }
-    if (status === 'completed') {
+    if (status === "completed") {
       router.replace(`/exam/simulation/${simulationId}/score`);
     }
   }, [simState.simulationId, status, simulationId, router]);
 
   // ── Initialize section when status is 'countdown' ─────────
   useEffect(() => {
-    if (status !== 'countdown') return;
+    if (status !== "countdown") return;
     if (!currentSection || !currentSection.questionSetId) return;
 
     const isFirstSection = currentSectionIndex === 0;
@@ -395,6 +478,7 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
   const initializeSection = useCallback(async () => {
     if (!currentSection?.questionSetId) return;
     setLoading(true);
+    setInitError(null);
     setShowCountdown(false);
     setShowUnansweredWarning(false);
     setShowTriage(false);
@@ -402,7 +486,16 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
 
     try {
       const qs = await getQuestionsBySetId(currentSection.questionSetId);
+      if (!qs || qs.length === 0) {
+        throw new Error(
+          "No questions found for this section. Please check the question set.",
+        );
+      }
       setQuestions(qs);
+
+      const ps = await getPassagesBySetId(currentSection.questionSetId);
+      setPassages(ps);
+
       setCurrentIndex(0);
 
       const now = performance.now();
@@ -421,24 +514,39 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
       setQuestionStates(initStates);
       setSessionStartMs(now);
 
-      // Create exam_session record
-      const sid = await createSession({
-        set_id: currentSection.questionSetId,
-        mode: 'simulation',
-        total_count: qs.length,
-        simulation_exam_id: simulationId,
-        simulation_section_order: currentSectionIndex + 1,
-      });
+      // Create exam_session record — try with simulation fields first, fall back without them
+      let sid: string;
+      try {
+        sid = await createSession({
+          set_id: currentSection.questionSetId,
+          mode: "simulation",
+          total_count: qs.length,
+          simulation_exam_id: simulationId,
+          simulation_section_order: currentSectionIndex + 1,
+        });
+      } catch {
+        // Column may not exist in this deployment — retry without simulation metadata
+        sid = await createSession({
+          set_id: currentSection.questionSetId,
+          mode: "simulation",
+          total_count: qs.length,
+        });
+      }
       setSessionId(sid);
 
-      // Update simulation store: session started
-      startSection(sid, currentSection.sectionRecordId!);
+      // Update simulation store: session started → status becomes 'in_section'
+      startSection(sid, currentSection.sectionRecordId ?? sid);
 
       triageFiredRef.current = false;
       triageDismissedRef.current = false;
     } catch (err) {
-      console.error('Failed to initialize section:', err);
-      toast.error('Failed to load questions. Please try again.');
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Failed to load section. Please try again.";
+      console.error("Failed to initialize section:", err);
+      setInitError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -453,16 +561,28 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
       const spent = now - qs.questionDisplayedAt;
       return {
         ...prev,
-        [currentIndex]: { ...qs, timeSpentMs: qs.timeSpentMs + spent, questionDisplayedAt: 0 },
+        [currentIndex]: {
+          ...qs,
+          timeSpentMs: qs.timeSpentMs + spent,
+          questionDisplayedAt: 0,
+        },
       };
     });
   }, [currentIndex]);
 
   // ── Tracking event helper ──────────────────────────────────
-  const trackEvent = useCallback((type: TrackingEventType, data?: Record<string, unknown>) => {
-    const offset = sessionStartMs ? Math.round(performance.now() - sessionStartMs) : 0;
-    setPendingEvents((prev) => [...prev, { event_type: type, event_data: data, timestamp_offset_ms: offset }]);
-  }, [sessionStartMs]);
+  const trackEvent = useCallback(
+    (type: TrackingEventType, data?: Record<string, unknown>) => {
+      const offset = sessionStartMs
+        ? Math.round(performance.now() - sessionStartMs)
+        : 0;
+      setPendingEvents((prev) => [
+        ...prev,
+        { event_type: type, event_data: data, timestamp_offset_ms: offset },
+      ]);
+    },
+    [sessionStartMs],
+  );
 
   // ── Navigate to next question ──────────────────────────────
   const goToNext = useCallback(() => {
@@ -480,11 +600,23 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
       return {
         ...prev,
         [nextIdx]: existing
-          ? { ...existing, questionDisplayedAt: now, questionTimerStartMs: existing.questionTimerStartMs || now }
-          : { selectedAnswer: null, answerChanges: [], triageTriggered: false, triageDismissed: false, questionDisplayedAt: now, questionTimerStartMs: now, timeSpentMs: 0 },
+          ? {
+              ...existing,
+              questionDisplayedAt: now,
+              questionTimerStartMs: existing.questionTimerStartMs || now,
+            }
+          : {
+              selectedAnswer: null,
+              answerChanges: [],
+              triageTriggered: false,
+              triageDismissed: false,
+              questionDisplayedAt: now,
+              questionTimerStartMs: now,
+              timeSpentMs: 0,
+            },
       };
     });
-    trackEvent('navigated_to_question', { to_q: nextIdx + 1 });
+    trackEvent("navigated_to_question", { to_q: nextIdx + 1 });
   }, [currentIndex, questions.length, recordCurrentQuestionTime, trackEvent]);
 
   // ── Handle "Next" button click ─────────────────────────────
@@ -513,11 +645,17 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
     } else {
       goToNext();
     }
-  }, [questionStates, currentIndex, questions.length, showUnansweredWarning, goToNext]);
+  }, [
+    questionStates,
+    currentIndex,
+    questions.length,
+    showUnansweredWarning,
+    goToNext,
+  ]);
 
   // ── Section auto-submit (timer expires) ───────────────────
   const handleSectionTimerExpire = useCallback(() => {
-    toast.info('Time\'s up! Section ended.');
+    toast.info("Time's up! Section ended.");
     handleSectionComplete();
   }, []);
 
@@ -537,7 +675,9 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
           question_id: q.id,
           question_order: i + 1,
           selected_answer: s?.selectedAnswer || null,
-          is_correct: s?.selectedAnswer ? s.selectedAnswer === q.correct_answer : null,
+          is_correct: s?.selectedAnswer
+            ? s.selectedAnswer === q.correct_answer
+            : null,
           time_spent_seconds: Math.round((s?.timeSpentMs || 0) / 1000),
           flagged_for_review: false,
           answer_changes: s?.answerChanges || [],
@@ -547,9 +687,16 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
       });
 
       const correctCount = responsesData.filter((r) => r.is_correct).length;
-      const skippedCount = responsesData.filter((r) => !r.selected_answer).length;
+      const skippedCount = responsesData.filter(
+        (r) => !r.selected_answer,
+      ).length;
       const timeUsedSeconds = sectionTimerStartedAt
-        ? Math.min(SECTION_TIMER_SECS, Math.round((Date.now() - new Date(sectionTimerStartedAt).getTime()) / 1000))
+        ? Math.min(
+            SECTION_TIMER_SECS,
+            Math.round(
+              (Date.now() - new Date(sectionTimerStartedAt).getTime()) / 1000,
+            ),
+          )
         : 0;
 
       await saveResponses(responsesData);
@@ -558,7 +705,10 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
         total_time_seconds: timeUsedSeconds,
         correct_count: correctCount,
         total_count: questions.length,
-        score: questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0,
+        score:
+          questions.length > 0
+            ? Math.round((correctCount / questions.length) * 100)
+            : 0,
       });
 
       if (pendingEvents.length > 0) {
@@ -569,14 +719,21 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
             event_type: e.event_type,
             event_data: e.event_data,
             timestamp_offset_ms: e.timestamp_offset_ms,
-          }))
+          })),
         );
       }
 
       // Compute scaled score: floor((correct/total) * 30 + 60), range 60–90
-      const scaledScore = questions.length > 0
-        ? Math.max(60, Math.min(90, Math.floor((correctCount / questions.length) * 30 + 60)))
-        : 60;
+      const scaledScore =
+        questions.length > 0
+          ? Math.max(
+              60,
+              Math.min(
+                90,
+                Math.floor((correctCount / questions.length) * 30 + 60),
+              ),
+            )
+          : 60;
 
       // Update simulation section record
       if (currentSection?.sectionRecordId) {
@@ -605,12 +762,23 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
       setSectionResult(result);
       completeSectionWithResult(result);
     } catch (err) {
-      console.error('Failed to save section:', err);
-      toast.error('Failed to save section. Please check your connection.');
+      console.error("Failed to save section:", err);
+      toast.error("Failed to save section. Please check your connection.");
     } finally {
       setSaving(false);
     }
-  }, [saving, recordCurrentQuestionTime, questionStates, questions, sessionId, sectionTimerStartedAt, pendingEvents, currentSection, currentSectionIndex, completeSectionWithResult]);
+  }, [
+    saving,
+    recordCurrentQuestionTime,
+    questionStates,
+    questions,
+    sessionId,
+    sectionTimerStartedAt,
+    pendingEvents,
+    currentSection,
+    currentSectionIndex,
+    completeSectionWithResult,
+  ]);
 
   // ── Triage expire ──────────────────────────────────────────
   const handleTriageExpire = useCallback(() => {
@@ -623,42 +791,53 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
       ...prev,
       [currentIndex]: { ...prev[currentIndex], triageTriggered: true },
     }));
-    trackEvent('triage_triggered', { question_number: currentIndex + 1 });
+    trackEvent("triage_triggered", { question_number: currentIndex + 1 });
   }, [questionStates, currentIndex, trackEvent]);
 
   // ── Select answer ──────────────────────────────────────────
-  const selectAnswer = useCallback((letter: string) => {
-    const now = performance.now();
-    const elapsed = sessionStartMs ? Math.round(now - sessionStartMs) : 0;
-    setQuestionStates((prev) => {
-      const existing = prev[currentIndex];
-      const changes = [...(existing?.answerChanges || [])];
-      if (existing?.selectedAnswer && existing.selectedAnswer !== letter) {
-        changes.push({ from: existing.selectedAnswer, to: letter, timestamp_offset_ms: elapsed });
-      }
-      return {
-        ...prev,
-        [currentIndex]: {
-          ...existing,
-          selectedAnswer: letter,
-          answerChanges: changes,
-        },
-      };
-    });
-  }, [currentIndex, sessionStartMs]);
+  const selectAnswer = useCallback(
+    (letter: string) => {
+      const now = performance.now();
+      const elapsed = sessionStartMs ? Math.round(now - sessionStartMs) : 0;
+      setQuestionStates((prev) => {
+        const existing = prev[currentIndex];
+        const changes = [...(existing?.answerChanges || [])];
+        if (existing?.selectedAnswer && existing.selectedAnswer !== letter) {
+          changes.push({
+            from: existing.selectedAnswer,
+            to: letter,
+            timestamp_offset_ms: elapsed,
+          });
+        }
+        return {
+          ...prev,
+          [currentIndex]: {
+            ...existing,
+            selectedAnswer: letter,
+            answerChanges: changes,
+          },
+        };
+      });
+    },
+    [currentIndex, sessionStartMs],
+  );
 
   // ── Keyboard shortcuts ─────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (status !== 'in_section') return;
-      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
-      if (e.key === 'ArrowRight' || e.key === 'n') handleNextClick();
-      if (['a', 'b', 'c', 'd', 'e'].includes(e.key.toLowerCase())) {
+      if (status !== "in_section") return;
+      if (
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLInputElement
+      )
+        return;
+      if (e.key === "ArrowRight" || e.key === "n") handleNextClick();
+      if (["a", "b", "c", "d", "e"].includes(e.key.toLowerCase())) {
         selectAnswer(e.key.toUpperCase());
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, [status, handleNextClick, selectAnswer]);
 
   // ── After section summary actions ─────────────────────────
@@ -678,16 +857,18 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
 
   const handleViewScore = async () => {
     // Update simulation_exams record
-    const results = [...simState.sectionResults, sectionResult].filter(Boolean) as SectionResult[];
+    const results = [...simState.sectionResults, sectionResult].filter(
+      Boolean,
+    ) as SectionResult[];
     const totalScore = computeTotalScore(results);
     try {
       await updateSimulationExam(simulationId, {
-        status: 'completed',
+        status: "completed",
         completed_at: new Date().toISOString(),
         total_score: totalScore,
       });
     } catch (err) {
-      console.error('Failed to update simulation exam:', err);
+      console.error("Failed to update simulation exam:", err);
     }
     completeSimulation();
     router.push(`/exam/simulation/${simulationId}/score`);
@@ -695,16 +876,16 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
 
   // ── Render states ──────────────────────────────────────────
 
-  if (!simState.simulationId || status === 'idle') {
+  if (!simState.simulationId || status === "idle") {
     return null;
   }
 
-  if (status === 'completed') {
+  if (status === "completed") {
     return null;
   }
 
   // Section Summary Screen
-  if (status === 'section_summary' && sectionResult) {
+  if (status === "section_summary" && sectionResult) {
     return (
       <SectionSummary
         sectionResult={sectionResult}
@@ -731,7 +912,31 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  if (loading || status === 'countdown' || !questions.length) {
+  // Show error state with retry if initialization failed
+  if (initError && !loading) {
+    return (
+      <div className="min-h-screen bg-[#0A1628] flex items-center justify-center px-4">
+        <div className="text-center space-y-4 max-w-sm">
+          <p className="text-4xl">⚠️</p>
+          <h2 className="text-white font-semibold text-lg">
+            Failed to load section
+          </h2>
+          <p className="text-slate-400 text-sm">{initError}</p>
+          <Button
+            onClick={() => {
+              setInitError(null);
+              initializeSection();
+            }}
+            className="bg-indigo-600 hover:bg-indigo-500"
+          >
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading || (status === "countdown" && questions.length === 0)) {
     return (
       <div className="min-h-screen bg-[#0A1628] flex items-center justify-center">
         <div className="text-center space-y-3">
@@ -742,7 +947,7 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  if (status !== 'in_section') return null;
+  if (status !== "in_section") return null;
 
   // ── Exam UI ────────────────────────────────────────────────
 
@@ -750,12 +955,23 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
   const qs = questionStates[currentIndex];
   if (!currentQ) return null;
 
-  const choices = ['A', 'B', 'C', 'D', 'E']
-    .map((l) => ({ letter: l, text: currentQ[`choice_${l.toLowerCase()}` as keyof Question] as string }))
+  const choices = ["A", "B", "C", "D", "E"]
+    .map((l) => ({
+      letter: l,
+      text: currentQ[`choice_${l.toLowerCase()}` as keyof Question] as string,
+    }))
     .filter((c) => c.text);
 
-  const isDS = currentQ.question_type === 'Data Sufficiency';
-  const isRC = currentQ.question_type === 'Reading Comprehension';
+  const isDS = currentQ.question_type === "Data Sufficiency";
+  const isRC =
+    currentQ.question_type === "Reading Comprehension" || !!currentQ.passage_id;
+  // Resolve passage text from the passages table (loaded during initialization)
+  const passageText = (() => {
+    if (!currentQ?.passage_id) return "";
+    return (
+      passages.find((p) => p.id === currentQ.passage_id)?.passage_text || ""
+    );
+  })();
   const showTimerRing = qs?.questionTimerStartMs > 0;
 
   return (
@@ -772,10 +988,10 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
                   key={i}
                   className={`w-6 h-6 rounded text-xs font-bold flex-shrink-0 flex items-center justify-center ${
                     i === currentIndex
-                      ? 'bg-blue-500 text-white scale-110 ring-2 ring-blue-400/50'
+                      ? "bg-blue-500 text-white scale-110 ring-2 ring-blue-400/50"
                       : s?.selectedAnswer
-                        ? 'bg-slate-600 text-white'
-                        : 'bg-slate-800 text-slate-400'
+                        ? "bg-slate-600 text-white"
+                        : "bg-slate-800 text-slate-400"
                   }`}
                 >
                   {i + 1}
@@ -789,12 +1005,15 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
             <SectionTimer
               startedAt={sectionTimerStartedAt}
               onExpire={handleSectionTimerExpire}
-              sectionLabel={`${SECTION_LABELS[currentSection!.sectionType].split(' ')[0]}`}
+              sectionLabel={`${SECTION_LABELS[currentSection!.sectionType].split(" ")[0]}`}
             />
           )}
 
           {/* Simulation badge */}
-          <Badge variant="outline" className="border-indigo-500/30 text-indigo-400 text-xs flex-shrink-0">
+          <Badge
+            variant="outline"
+            className="border-indigo-500/30 text-indigo-400 text-xs flex-shrink-0"
+          >
             SIM · {currentSectionIndex + 1}/{sections.length}
           </Badge>
         </div>
@@ -806,27 +1025,44 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
           /* RC: Two-column — no passage map gate */
           <div className="grid grid-cols-[55%_45%] gap-6 h-[calc(100vh-120px)]">
             <div className="overflow-y-auto pr-2">
-              {(currentQ.passage_text || currentQ.stem).split(/\n\n+/).filter((p) => p.trim()).map((para, i) => (
-                <div key={i} className="flex gap-3 mb-4">
-                  <span className="text-blue-400 font-bold text-sm flex-shrink-0 mt-0.5">P{i + 1}</span>
-                  <p className="text-sm leading-relaxed text-slate-200">{para}</p>
-                </div>
-              ))}
+              {(passageText || currentQ.stem)
+                .split(/\n\n+/)
+                .filter((p) => p.trim())
+                .map((para, i) => (
+                  <div key={i} className="flex gap-3 mb-4">
+                    <span className="text-blue-400 font-bold text-sm flex-shrink-0 mt-0.5">
+                      P{i + 1}
+                    </span>
+                    <p className="text-sm leading-relaxed text-slate-200">
+                      {para}
+                    </p>
+                  </div>
+                ))}
             </div>
             <div className="overflow-y-auto">
               <SimQuestionPanel
-                q={currentQ} qs={qs} choices={choices} isDS={isDS}
-                showTimerRing={showTimerRing} onSelect={selectAnswer}
-                onTriageExpire={handleTriageExpire} currentIndex={currentIndex}
+                q={currentQ}
+                qs={qs}
+                choices={choices}
+                isDS={isDS}
+                showTimerRing={showTimerRing}
+                onSelect={selectAnswer}
+                onTriageExpire={handleTriageExpire}
+                currentIndex={currentIndex}
                 totalQuestions={questions.length}
               />
             </div>
           </div>
         ) : (
           <SimQuestionPanel
-            q={currentQ} qs={qs} choices={choices} isDS={isDS}
-            showTimerRing={showTimerRing} onSelect={selectAnswer}
-            onTriageExpire={handleTriageExpire} currentIndex={currentIndex}
+            q={currentQ}
+            qs={qs}
+            choices={choices}
+            isDS={isDS}
+            showTimerRing={showTimerRing}
+            onSelect={selectAnswer}
+            onTriageExpire={handleTriageExpire}
+            currentIndex={currentIndex}
             totalQuestions={questions.length}
           />
         )}
@@ -842,16 +1078,24 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
                 You haven&apos;t selected an answer. Proceed anyway?
               </span>
               <div className="flex gap-2">
-                <Button size="sm" variant="ghost" className="text-amber-400 hover:text-amber-200 text-xs h-7"
-                  onClick={() => setShowUnansweredWarning(false)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-amber-400 hover:text-amber-200 text-xs h-7"
+                  onClick={() => setShowUnansweredWarning(false)}
+                >
                   Go back
                 </Button>
-                <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-xs h-7"
+                <Button
+                  size="sm"
+                  className="bg-amber-600 hover:bg-amber-700 text-xs h-7"
                   onClick={() => {
                     setShowUnansweredWarning(false);
-                    if (currentIndex >= questions.length - 1) handleSectionComplete();
+                    if (currentIndex >= questions.length - 1)
+                      handleSectionComplete();
                     else goToNext();
-                  }}>
+                  }}
+                >
                   Yes, skip
                 </Button>
               </div>
@@ -861,15 +1105,23 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
           <div className="flex items-center justify-between">
             {/* No back button in simulation mode */}
             <div />
-            <span className="text-slate-500 text-sm">{currentIndex + 1} / {questions.length}</span>
+            <span className="text-slate-500 text-sm">
+              {currentIndex + 1} / {questions.length}
+            </span>
             <Button
               onClick={handleNextClick}
               disabled={saving}
-              className={currentIndex >= questions.length - 1
-                ? 'bg-green-600 hover:bg-green-700 text-white'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'}
+              className={
+                currentIndex >= questions.length - 1
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }
             >
-              {saving ? 'Saving…' : currentIndex >= questions.length - 1 ? 'End Section ✓' : 'Next →'}
+              {saving
+                ? "Saving…"
+                : currentIndex >= questions.length - 1
+                  ? "End Section ✓"
+                  : "Next →"}
             </Button>
           </div>
         </div>
@@ -885,7 +1137,7 @@ export default function SimulationExamPage({ params }: { params: Promise<{ id: s
               ...prev,
               [currentIndex]: { ...prev[currentIndex], triageDismissed: true },
             }));
-            trackEvent('triage_dismissed');
+            trackEvent("triage_dismissed");
           }}
         />
       )}
@@ -907,20 +1159,46 @@ interface SimQuestionPanelProps {
   totalQuestions: number;
 }
 
-function SimQuestionPanel({ q, qs, choices, isDS, showTimerRing, onSelect, onTriageExpire, currentIndex }: SimQuestionPanelProps) {
+function SimQuestionPanel({
+  q,
+  qs,
+  choices,
+  isDS,
+  showTimerRing,
+  onSelect,
+  onTriageExpire,
+  currentIndex,
+}: SimQuestionPanelProps) {
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
       {/* Question header — no flag button */}
       <div className="flex items-start gap-3 justify-between">
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="outline" className="border-blue-500/30 text-blue-400 text-xs">Q{currentIndex + 1}</Badge>
-          <Badge variant="outline" className="border-slate-600 text-slate-400 text-xs">{q.difficulty}</Badge>
-          <Badge variant="outline" className="border-purple-500/30 text-purple-400 text-xs">
+          <Badge
+            variant="outline"
+            className="border-blue-500/30 text-blue-400 text-xs"
+          >
+            Q{currentIndex + 1}
+          </Badge>
+          <Badge
+            variant="outline"
+            className="border-slate-600 text-slate-400 text-xs"
+          >
+            {q.difficulty}
+          </Badge>
+          <Badge
+            variant="outline"
+            className="border-purple-500/30 text-purple-400 text-xs"
+          >
             {q.topic || q.question_type}
           </Badge>
         </div>
         {showTimerRing && (
-          <TimerRing startMs={qs?.questionTimerStartMs || 0} totalSecs={TRIAGE_SECS} onExpire={onTriageExpire} />
+          <TimerRing
+            startMs={qs?.questionTimerStartMs || 0}
+            totalSecs={TRIAGE_SECS}
+            onExpire={onTriageExpire}
+          />
         )}
       </div>
 
@@ -931,19 +1209,25 @@ function SimQuestionPanel({ q, qs, choices, isDS, showTimerRing, onSelect, onTri
             <p className="text-base leading-relaxed">{q.stem}</p>
             {q.statement1 && (
               <div className="pl-4 border-l-2 border-blue-500/40">
-                <span className="text-blue-400 font-semibold text-sm">(1) </span>
+                <span className="text-blue-400 font-semibold text-sm">
+                  (1){" "}
+                </span>
                 <span className="text-sm leading-relaxed">{q.statement1}</span>
               </div>
             )}
             {q.statement2 && (
               <div className="pl-4 border-l-2 border-blue-500/40">
-                <span className="text-blue-400 font-semibold text-sm">(2) </span>
+                <span className="text-blue-400 font-semibold text-sm">
+                  (2){" "}
+                </span>
                 <span className="text-sm leading-relaxed">{q.statement2}</span>
               </div>
             )}
           </div>
         ) : (
-          <p className="text-base leading-relaxed whitespace-pre-wrap">{q.stem}</p>
+          <p className="text-base leading-relaxed whitespace-pre-wrap">
+            {q.stem}
+          </p>
         )}
       </div>
 
@@ -957,13 +1241,17 @@ function SimQuestionPanel({ q, qs, choices, isDS, showTimerRing, onSelect, onTri
               onClick={() => onSelect(letter)}
               className={`w-full text-left p-4 rounded-xl border transition-all duration-150 flex items-start gap-3 group ${
                 isSelected
-                  ? 'border-blue-500 bg-blue-500/15 shadow-lg shadow-blue-500/10'
-                  : 'border-slate-700/50 bg-slate-800/30 hover:border-slate-600 hover:bg-slate-800/50'
+                  ? "border-blue-500 bg-blue-500/15 shadow-lg shadow-blue-500/10"
+                  : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600 hover:bg-slate-800/50"
               }`}
             >
-              <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5 transition-colors ${
-                isSelected ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-400 group-hover:bg-slate-600'
-              }`}>
+              <span
+                className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5 transition-colors ${
+                  isSelected
+                    ? "bg-blue-500 text-white"
+                    : "bg-slate-700 text-slate-400 group-hover:bg-slate-600"
+                }`}
+              >
                 {letter}
               </span>
               <span className="text-sm leading-relaxed pt-0.5">{text}</span>

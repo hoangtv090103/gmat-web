@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback, use } from "react";
+import React, { useEffect, useRef, useState, useCallback, use, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useExamStore } from "@/store/examStore";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,9 @@ import {
   saveResponses,
   saveTrackingEvents,
   updateSession,
+  getPassagesBySetId,
 } from "@/lib/db";
+import type { Passage } from "@/types/gmat";
 import { toast } from "sonner";
 
 // ─── Per-Question Countdown Ring ─────────────────────────────
@@ -356,6 +358,9 @@ export default function ExamPage({
     Record<string, string>
   >({});
 
+  // ── Passages (loaded once when questions are available) ───
+  const [passages, setPassages] = useState<Passage[]>([]);
+
   const {
     mode,
     questions,
@@ -387,8 +392,23 @@ export default function ExamPage({
   const currentQ = questions[currentIndex];
   const qs = questionStates[currentIndex];
   const isCR = currentQ?.question_type === "Critical Reasoning";
-  const isRC = currentQ?.question_type === "Reading Comprehension";
+  const isRC =
+    currentQ?.question_type === "Reading Comprehension" ||
+    !!currentQ?.passage_id;
   const isSimulation = mode === "simulation";
+
+  // Resolve passage text from the passages table (loaded by set_id below)
+  const passageText = useMemo(() => {
+    if (!currentQ?.passage_id) return "";
+    return passages.find((p) => p.id === currentQ.passage_id)?.passage_text ?? "";
+  }, [currentQ, passages]);
+
+  // ── Load passages when questions are available ────────────
+  useEffect(() => {
+    const setId = questions[0]?.set_id;
+    if (!setId) return;
+    getPassagesBySetId(setId).then(setPassages).catch(() => {});
+  }, [questions]);
 
   // ── Redirect if no active session ────────────────────────
   useEffect(() => {
@@ -611,7 +631,6 @@ export default function ExamPage({
     (isSimulation || (qs?.choicesUnlocked && qs?.passageMapComplete));
   const triageSecs = mode === "practice" ? 180 : 120;
   const choicesLocked = !isSimulation && !qs?.choicesUnlocked;
-  const mapLocked = !isSimulation && !qs?.passageMapComplete;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0A1628]">
@@ -666,57 +685,67 @@ export default function ExamPage({
       </header>
 
       {/* ── Main content ── */}
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+      <main className={`flex-1 max-w-6xl mx-auto w-full px-4${isRC ? " overflow-hidden" : " py-6"}`}>
         {isRC ? (
-          /* RC: Two-column layout */
-          <div className="grid grid-cols-[55%_45%] gap-6 h-[calc(100vh-120px)]">
-            {/* Left: passage + map (map gate disabled in simulation) */}
-            <div className="flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto pr-2">
-                <div className="space-y-4">
-                  {(currentQ.passage_text || currentQ.stem)
-                    .split(/\n\n+/)
-                    .filter((p) => p.trim())
-                    .map((para, i) => (
-                      <div key={i} className="flex gap-3">
-                        <span className="text-blue-400 font-bold text-sm flex-shrink-0 mt-0.5">
-                          P{i + 1}
-                        </span>
-                        <p className="text-sm leading-relaxed text-slate-200">
-                          {para}
-                        </p>
-                      </div>
-                    ))}
+          /* RC: GMAT-style split layout — passage left, question right */
+          <div className="-mx-4 flex h-[calc(100vh-116px)] overflow-hidden">
+
+            {/* ── Left: Passage pane (57%) ── */}
+            <div className="flex flex-col border-r border-slate-700/50" style={{ width: "57%" }}>
+              {/* Header bar */}
+              <div className="px-6 py-2.5 border-b border-slate-700/50 bg-slate-900/60 flex-shrink-0 flex items-center justify-between">
+                <span className="text-[10.5px] font-semibold text-slate-400 uppercase tracking-[0.18em]">
+                  Reading Comprehension
+                </span>
+                {!isSimulation && qs?.passageMapComplete && (
+                  <span className="text-[10.5px] text-green-500/70 font-medium">
+                    ✓ Passage Map complete
+                  </span>
+                )}
+              </div>
+
+              {/* Scrollable passage text */}
+              <div className="flex-1 overflow-y-auto bg-[#0B1623]/50">
+                <div className="px-8 py-7">
+                  {passageText ? (
+                    <div className="space-y-[1.1em] text-[13.5px] leading-[1.9] text-slate-100 max-w-[600px]">
+                      {passageText
+                        .split(/\n\n+/)
+                        .filter((p) => p.trim())
+                        .map((para, i) => (
+                          <p key={i}>{para}</p>
+                        ))}
+                    </div>
+                  ) : (
+                    <p className="text-slate-500 italic text-sm">
+                      Passage text is not available for this question.
+                    </p>
+                  )}
                 </div>
               </div>
-              {!isSimulation && (
-                <PassageMapInput
-                  passage={currentQ.passage_text || currentQ.stem}
-                  mode={mode}
-                  value={passageMapDraft}
-                  onChange={setPassageMapDraft}
-                  onComplete={handleCompletePassageMap}
-                  onSkip={handleSkipPassageMap}
-                  isComplete={qs?.passageMapComplete || false}
-                />
+
+              {/* Passage Map — practice mode only, non-blocking */}
+              {!isSimulation && mode === "practice" && (
+                <div className="border-t border-slate-700/50 flex-shrink-0 overflow-y-auto max-h-[38%] bg-slate-900/40">
+                  <PassageMapInput
+                    passage={passageText || currentQ.stem}
+                    mode={mode}
+                    value={passageMapDraft}
+                    onChange={setPassageMapDraft}
+                    onComplete={handleCompletePassageMap}
+                    onSkip={handleSkipPassageMap}
+                    isComplete={qs?.passageMapComplete || false}
+                  />
+                </div>
               )}
             </div>
 
-            {/* Right: question + choices */}
+            {/* ── Right: Question pane (43%) ── */}
             <div
-              className={`overflow-y-auto transition-all duration-300 ${!isSimulation && mapLocked ? "blur-sm pointer-events-none select-none" : ""}`}
+              className="flex flex-col overflow-y-auto bg-[#0A1628]"
+              style={{ width: "43%" }}
             >
-              {!isSimulation && mapLocked && (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center text-muted-foreground">
-                    <p className="text-4xl mb-3">🗺️</p>
-                    <p className="font-medium">
-                      Complete the Passage Map to unlock questions.
-                    </p>
-                  </div>
-                </div>
-              )}
-              {(isSimulation || !mapLocked) && (
+              <div className="px-7 py-6">
                 <QuestionPanel
                   q={currentQ}
                   qs={qs}
@@ -737,7 +766,7 @@ export default function ExamPage({
                   currentIndex={currentIndex}
                   totalQuestions={questions.length}
                 />
-              )}
+              </div>
             </div>
           </div>
         ) : (

@@ -1,3 +1,12 @@
+// ─── Passages ───────────────────────────────────────────────
+
+export interface Passage {
+  id: string;
+  set_id: string;
+  passage_text: string;
+  created_at: string;
+}
+
 // ─── Question Bank ───────────────────────────────────────────
 
 export interface QuestionSet {
@@ -32,9 +41,8 @@ export interface Question {
   s1_verdict?: string;
   s2_verdict?: string;
   reasoning?: string;
-  // Feature 4: RC passage grouping
+  // Feature 4: RC passage grouping — passage_id is UUID FK → passages.id
   passage_id?: string;
-  passage_text?: string;
   created_at: string;
 }
 
