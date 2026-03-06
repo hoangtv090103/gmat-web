@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import React, { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -229,7 +229,7 @@ export default function ResultsPage({
                 const isExpanded = expandedQ === r.id;
 
                 return (
-                  <>
+                  <React.Fragment key={r.id}>
                     <TableRow
                       key={r.id}
                       className="border-slate-800 cursor-pointer hover:bg-slate-800/50 transition-colors"
@@ -273,10 +273,7 @@ export default function ResultsPage({
                       </TableCell>
                     </TableRow>
                     {isExpanded && q.explanation && (
-                      <TableRow
-                        key={`${r.id}-exp`}
-                        className="border-slate-800"
-                      >
+                      <TableRow className="border-slate-800">
                         <TableCell colSpan={7}>
                           <div className="py-3 px-4 bg-slate-900/50 rounded-lg animate-fade-in">
                             <h4 className="text-sm font-semibold text-blue-400 mb-2">
@@ -308,7 +305,7 @@ export default function ResultsPage({
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </React.Fragment>
                 );
               })}
             </TableBody>
