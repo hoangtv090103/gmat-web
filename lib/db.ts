@@ -4,6 +4,8 @@ import {
   ExamSession,
   QuestionResponse,
   TrackingEvent,
+  SimulationExam,
+  SimulationSection,
 } from '@/types/gmat';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 
@@ -14,6 +16,8 @@ const STORAGE_KEYS = {
   SESSIONS: 'gmat_sessions',
   RESPONSES: 'gmat_responses',
   EVENTS: 'gmat_events',
+  SIMULATION_EXAMS: 'gmat_simulation_exams',
+  SIMULATION_SECTIONS: 'gmat_simulation_sections',
 };
 
 function getLocal<T>(key: string): T[] {
@@ -250,6 +254,34 @@ export async function getAllResponses(): Promise<QuestionResponse[]> {
   return getLocal<QuestionResponse>(STORAGE_KEYS.RESPONSES);
 }
 
+export async function updateResponse(
+  sessionId: string,
+  questionId: string,
+  updates: Partial<Pick<QuestionResponse, 'error_category' | 'note' | 'missing_link' | 'choices_unlocked_at_ms' | 'passage_map' | 'triage_triggered'>>
+): Promise<void> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { error } = await supabase
+      .from('question_responses')
+      .update(updates)
+      .eq('session_id', sessionId)
+      .eq('question_id', questionId);
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  // localStorage fallback
+  const responses = getLocal<QuestionResponse>(STORAGE_KEYS.RESPONSES);
+  const idx = responses.findIndex(
+    (r) => r.session_id === sessionId && r.question_id === questionId
+  );
+  if (idx >= 0) {
+    responses[idx] = { ...responses[idx], ...updates };
+    setLocal(STORAGE_KEYS.RESPONSES, responses);
+  }
+}
+
 // ─── Tracking Events ─────────────────────────────────────────
 
 export async function saveTrackingEvents(events: Omit<TrackingEvent, 'id' | 'created_at'>[]): Promise<void> {
@@ -286,6 +318,152 @@ export async function getTrackingEventsBySession(sessionId: string): Promise<Tra
   return getLocal<TrackingEvent>(STORAGE_KEYS.EVENTS)
     .filter((e) => e.session_id === sessionId)
     .sort((a, b) => a.timestamp_offset_ms - b.timestamp_offset_ms);
+}
+
+// ─── Simulation Exams ────────────────────────────────────────
+
+export async function createSimulationExam(
+  exam: Omit<SimulationExam, 'id' | 'created_at'>
+): Promise<string> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('simulation_exams')
+      .insert(exam)
+      .select('id')
+      .single();
+    if (error) throw new Error(error.message);
+    return data.id;
+  }
+
+  const id = crypto.randomUUID();
+  const full: SimulationExam = { ...exam, id, created_at: new Date().toISOString() };
+  const existing = getLocal<SimulationExam>(STORAGE_KEYS.SIMULATION_EXAMS);
+  setLocal(STORAGE_KEYS.SIMULATION_EXAMS, [...existing, full]);
+  return id;
+}
+
+export async function updateSimulationExam(
+  examId: string,
+  updates: Partial<SimulationExam>
+): Promise<void> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { error } = await supabase
+      .from('simulation_exams')
+      .update(updates)
+      .eq('id', examId);
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  const exams = getLocal<SimulationExam>(STORAGE_KEYS.SIMULATION_EXAMS);
+  const idx = exams.findIndex((e) => e.id === examId);
+  if (idx >= 0) {
+    exams[idx] = { ...exams[idx], ...updates };
+    setLocal(STORAGE_KEYS.SIMULATION_EXAMS, exams);
+  }
+}
+
+export async function getSimulationExam(examId: string): Promise<SimulationExam | null> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('simulation_exams')
+      .select('*')
+      .eq('id', examId)
+      .single();
+    if (error) return null;
+    return data;
+  }
+
+  const exams = getLocal<SimulationExam>(STORAGE_KEYS.SIMULATION_EXAMS);
+  return exams.find((e) => e.id === examId) || null;
+}
+
+export async function getAllSimulationExams(): Promise<SimulationExam[]> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('simulation_exams')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
+  return getLocal<SimulationExam>(STORAGE_KEYS.SIMULATION_EXAMS).sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+}
+
+// ─── Simulation Sections ─────────────────────────────────────
+
+export async function createSimulationSection(
+  section: Omit<SimulationSection, 'id'>
+): Promise<string> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('simulation_sections')
+      .insert(section)
+      .select('id')
+      .single();
+    if (error) throw new Error(error.message);
+    return data.id;
+  }
+
+  const id = crypto.randomUUID();
+  const full: SimulationSection = { ...section, id };
+  const existing = getLocal<SimulationSection>(STORAGE_KEYS.SIMULATION_SECTIONS);
+  setLocal(STORAGE_KEYS.SIMULATION_SECTIONS, [...existing, full]);
+  return id;
+}
+
+export async function updateSimulationSection(
+  sectionId: string,
+  updates: Partial<SimulationSection>
+): Promise<void> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { error } = await supabase
+      .from('simulation_sections')
+      .update(updates)
+      .eq('id', sectionId);
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  const sections = getLocal<SimulationSection>(STORAGE_KEYS.SIMULATION_SECTIONS);
+  const idx = sections.findIndex((s) => s.id === sectionId);
+  if (idx >= 0) {
+    sections[idx] = { ...sections[idx], ...updates };
+    setLocal(STORAGE_KEYS.SIMULATION_SECTIONS, sections);
+  }
+}
+
+export async function getSimulationSections(examId: string): Promise<SimulationSection[]> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('simulation_sections')
+      .select('*')
+      .eq('simulation_exam_id', examId)
+      .order('section_order', { ascending: true });
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
+  return getLocal<SimulationSection>(STORAGE_KEYS.SIMULATION_SECTIONS)
+    .filter((s) => s.simulation_exam_id === examId)
+    .sort((a, b) => a.section_order - b.section_order);
 }
 
 // ─── Delete ──────────────────────────────────────────────────

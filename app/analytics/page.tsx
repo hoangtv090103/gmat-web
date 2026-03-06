@@ -18,13 +18,20 @@ import {
   getAllResponses,
   getQuestionSets,
   getQuestionsBySetId,
+  getAllSimulationExams,
+  getSimulationSections,
 } from "@/lib/db";
 import {
   ExamSession,
   QuestionResponse,
   QuestionSet,
   Question,
+  ErrorPattern,
+  ErrorCategory,
+  SimulationExam,
+  SimulationSection,
 } from "@/types/gmat";
+import { SECTION_LABELS, SectionType } from "@/store/simulationStore";
 import {
   LineChart,
   Line,
@@ -43,6 +50,8 @@ import {
   ScatterChart,
   Scatter,
   Cell,
+  ReferenceLine,
+  Legend,
 } from "recharts";
 
 function formatDate(d: string) {
@@ -64,18 +73,23 @@ export default function AnalyticsPage() {
   const [sets, setSets] = useState<QuestionSet[]>([]);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
+  const [simExams, setSimExams] = useState<SimulationExam[]>([]);
+  const [simSectionsMap, setSimSectionsMap] = useState<Record<string, SimulationSection[]>>({});
+  const [showSectionTrends, setShowSectionTrends] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
-        const [sess, resp, qSets] = await Promise.all([
+        const [sess, resp, qSets, simExamsList] = await Promise.all([
           getAllSessions(),
           getAllResponses(),
           getQuestionSets(),
+          getAllSimulationExams().catch(() => [] as SimulationExam[]),
         ]);
         setSessions(sess);
         setResponses(resp);
         setSets(qSets);
+        setSimExams(simExamsList);
 
         // Load all questions for topic analysis
         const allQs: Question[] = [];
@@ -84,6 +98,19 @@ export default function AnalyticsPage() {
           allQs.push(...qs);
         }
         setAllQuestions(allQs);
+
+        // Load sections for completed simulation exams
+        const completedSims = simExamsList.filter((e) => e.status === "completed");
+        const sectionsMap: Record<string, SimulationSection[]> = {};
+        await Promise.all(
+          completedSims.map(async (exam) => {
+            try {
+              const secs = await getSimulationSections(exam.id);
+              sectionsMap[exam.id] = secs;
+            } catch { /* best effort */ }
+          })
+        );
+        setSimSectionsMap(sectionsMap);
       } catch (e) {
         console.error(e);
       } finally {
@@ -209,6 +236,98 @@ export default function AnalyticsPage() {
     [responses],
   );
 
+  // ─── Simulation Score Data ────────────────────────────────
+  const completedSimExams = useMemo(
+    () => simExams.filter((e) => e.status === "completed" && e.total_score),
+    [simExams]
+  );
+
+  const simScoreData = useMemo(() => {
+    return completedSimExams
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .map((exam, i) => {
+        const sections = simSectionsMap[exam.id] || [];
+        const quantSec = sections.find((s) => s.section_type === "quant");
+        const verbalSec = sections.find((s) => s.section_type === "verbal");
+        const diSec = sections.find((s) => s.section_type === "di");
+        return {
+          exam: i + 1,
+          date: formatDate(exam.created_at),
+          total: exam.total_score || 0,
+          quant: quantSec?.scaled_score,
+          verbal: verbalSec?.scaled_score,
+          di: diSec?.scaled_score,
+          examId: exam.id,
+          firstSessionId: sections.find((s) => s.section_order === 1)?.session_id,
+        };
+      });
+  }, [completedSimExams, simSectionsMap]);
+
+  // Set of session IDs that belong to simulation exams (for [SIM] badge)
+  const simSessionIds = useMemo(() => {
+    const ids = new Set<string>();
+    Object.values(simSectionsMap).forEach((secs) => {
+      secs.forEach((s) => { if (s.session_id) ids.add(s.session_id); });
+    });
+    return ids;
+  }, [simSectionsMap]);
+
+  // ─── Pattern Tracker ─────────────────────────────────────
+  const patterns = useMemo(() => {
+    const errorStats: Record<
+      string,
+      { sessions: Set<string>; count: number; lastSeen: string }
+    > = {};
+
+    responses.forEach((r) => {
+      if (r.is_correct || !r.error_category) return;
+      const q = qMap.get(r.question_id);
+      if (!q) return;
+      const topic = q.topic || q.question_type;
+      const key = `${topic}|${r.error_category}`;
+
+      if (!errorStats[key]) {
+        errorStats[key] = { sessions: new Set(), count: 0, lastSeen: "" };
+      }
+      errorStats[key].sessions.add(r.session_id);
+      errorStats[key].count++;
+
+      const session = sessions.find((s) => s.id === r.session_id);
+      if (session) {
+        if (
+          !errorStats[key].lastSeen ||
+          new Date(session.started_at) > new Date(errorStats[key].lastSeen)
+        ) {
+          errorStats[key].lastSeen = session.started_at;
+        }
+      }
+    });
+
+    const result: (ErrorPattern & { hasSimSession: boolean })[] = [];
+    Object.entries(errorStats).forEach(([key, stats]) => {
+      if (stats.sessions.size >= 2) {
+        const [topic, category] = key.split("|");
+        let status: "EMERGING" | "WATCH" | "CRITICAL" = "WATCH";
+        if (stats.count >= 5) status = "CRITICAL";
+        else if (stats.count >= 3) status = "EMERGING";
+        const sessionArr = Array.from(stats.sessions);
+        const hasSimSession = sessionArr.some((sid) => simSessionIds.has(sid));
+
+        result.push({
+          topic,
+          category: category as ErrorCategory,
+          count: stats.count,
+          sessions: sessionArr,
+          lastSeen: stats.lastSeen,
+          status,
+          hasSimSession,
+        });
+      }
+    });
+
+    return result.sort((a, b) => b.count - a.count);
+  }, [responses, qMap, sessions, simSessionIds]);
+
   // ─── Weakness Areas ──────────────────────────────────────
   const weaknesses = useMemo(() => {
     const typeStats: Record<string, { correct: number; total: number }> = {};
@@ -288,6 +407,109 @@ export default function AnalyticsPage() {
         </Card>
       ) : (
         <>
+          {/* ─── Simulated Scores ──────────────────────────── */}
+          {completedSimExams.length > 0 && (
+            <Card className="glass-card mb-8 animate-slide-up border-indigo-500/30">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm flex items-center gap-2 text-indigo-400">
+                      🎯 Simulated Scores
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {completedSimExams.length} exam{completedSimExams.length > 1 ? 's' : ''} · Target: 680
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-slate-600 text-slate-300 hover:bg-slate-800"
+                    onClick={() => setShowSectionTrends((v) => !v)}
+                  >
+                    {showSectionTrends ? 'Hide' : 'Show'} Section Trends
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={simScoreData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                    <YAxis domain={[205, 805]} tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                    <Tooltip
+                      contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
+                      labelStyle={{ color: "#94a3b8" }}
+                      formatter={(v, name) => {
+                        if (name === "total") return [`${v}`, "Total Score"];
+                        if (name === "quant") return [`${v}`, "Quant (60-90)"];
+                        if (name === "verbal") return [`${v}`, "Verbal (60-90)"];
+                        if (name === "di") return [`${v}`, "DI (60-90)"];
+                        return [`${v}`, String(name)];
+                      }}
+                    />
+                    <ReferenceLine y={680} stroke="#F59E0B" strokeDasharray="6 3" label={{ value: "Target 680", fill: "#F59E0B", fontSize: 11 }} />
+                    <Line type="monotone" dataKey="total" stroke="#6366F1" strokeWidth={2.5} dot={{ fill: "#6366F1", r: 5 }} activeDot={{ r: 7 }} name="total" />
+                    {showSectionTrends && (
+                      <>
+                        <Line type="monotone" dataKey="quant" stroke="#3B82F6" strokeWidth={1.5} strokeDasharray="4 2" dot={{ fill: "#3B82F6", r: 3 }} name="quant" />
+                        <Line type="monotone" dataKey="verbal" stroke="#8B5CF6" strokeWidth={1.5} strokeDasharray="4 2" dot={{ fill: "#8B5CF6", r: 3 }} name="verbal" />
+                        <Line type="monotone" dataKey="di" stroke="#10B981" strokeWidth={1.5} strokeDasharray="4 2" dot={{ fill: "#10B981", r: 3 }} name="di" />
+                        <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8" }} />
+                      </>
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
+
+                {/* Simulation history table */}
+                <div className="mt-6">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-slate-700">
+                        <TableHead className="text-xs">Date</TableHead>
+                        <TableHead className="text-xs">Total</TableHead>
+                        <TableHead className="text-xs">Quant</TableHead>
+                        <TableHead className="text-xs">Verbal</TableHead>
+                        <TableHead className="text-xs">DI</TableHead>
+                        <TableHead className="text-xs">Status</TableHead>
+                        <TableHead />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {simScoreData.map((row) => (
+                        <TableRow key={row.examId} className="border-slate-800">
+                          <TableCell className="text-muted-foreground text-xs">{row.date}</TableCell>
+                          <TableCell>
+                            <span className={`font-bold text-sm ${
+                              row.total >= 680 ? 'text-emerald-400' :
+                              row.total >= 650 ? 'text-amber-400' :
+                              'text-red-400'
+                            }`}>
+                              {row.total}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-xs text-slate-300">{row.quant ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-slate-300">{row.verbal ?? '—'}</TableCell>
+                          <TableCell className="text-xs text-slate-300">{row.di ?? '—'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs border-indigo-500/30 text-indigo-400">SIM</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {row.firstSessionId && (
+                              <Button variant="ghost" size="sm" className="text-xs text-blue-400"
+                                onClick={() => router.push(`/results/${row.firstSessionId}`)}>
+                                Review →
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* ─── Performance Trends ────────────────────────── */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {/* Accuracy Over Time */}
@@ -492,6 +714,67 @@ export default function AnalyticsPage() {
                     </Scatter>
                   </ScatterChart>
                 </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ─── Pattern Tracker ───────────────────────────────────── */}
+          {patterns.length > 0 && (
+            <Card className="glass-card mb-8 animate-slide-up border-amber-500/30">
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2 text-amber-500">
+                  🔍 Detected Error Patterns
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Repeated mistakes across multiple sessions
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {patterns.map((p, i) => (
+                    <div
+                      key={i}
+                      className="glass rounded-lg p-4 flex items-center justify-between border-l-4 border-l-amber-500 bg-amber-950/10"
+                    >
+                      <div>
+                        <div className="flex items-center gap-3 mb-1 flex-wrap">
+                          <span className="font-semibold text-sm">
+                            {p.topic}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            ×
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${p.category === "Content" ? "text-red-400 border-red-500/30" : p.category === "Process" ? "text-yellow-400 border-yellow-500/30" : "text-blue-400 border-blue-500/30"}`}
+                          >
+                            {p.category} Error
+                          </Badge>
+                          {p.hasSimSession && (
+                            <Badge variant="outline" className="text-xs border-indigo-500/30 text-indigo-400">
+                              [SIM]
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Done {p.count} times across {p.sessions.length}{" "}
+                          sessions. Last seen {formatDate(p.lastSeen)}.
+                        </p>
+                      </div>
+                      <Badge
+                        className={
+                          p.status === "CRITICAL"
+                            ? "bg-red-600"
+                            : p.status === "EMERGING"
+                              ? "bg-amber-600"
+                              : "bg-blue-600"
+                        }
+                      >
+                        {p.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}

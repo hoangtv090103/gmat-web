@@ -102,7 +102,15 @@ export default function DashboardPage() {
               Exam Simulator & Performance Tracker
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
+            <Link href="/exam/simulation/setup">
+              <Button
+                variant="outline"
+                className="border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 transition-all"
+              >
+                🎯 Mock Exam
+              </Button>
+            </Link>
             <Link href="/import">
               <Button className="bg-blue-600 hover:bg-blue-700 transition-all duration-200 shadow-lg shadow-blue-600/20">
                 <svg

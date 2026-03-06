@@ -32,6 +32,9 @@ export interface Question {
   s1_verdict?: string;
   s2_verdict?: string;
   reasoning?: string;
+  // Feature 4: RC passage grouping
+  passage_id?: string;
+  passage_text?: string;
   created_at: string;
 }
 
@@ -47,7 +50,7 @@ export type QuestionType =
 
 // ─── Exam Sessions ───────────────────────────────────────────
 
-export type ExamMode = 'timed' | 'practice' | 'review';
+export type ExamMode = 'timed' | 'practice' | 'review' | 'simulation';
 
 export interface ExamSession {
   id: string;
@@ -60,7 +63,48 @@ export interface ExamSession {
   correct_count?: number;
   total_count: number;
   session_metadata?: Record<string, unknown>;
+  // Feature 5: Simulation
+  simulation_exam_id?: string;
+  simulation_section_order?: number;
 }
+
+// ─── Simulation Mode ─────────────────────────────────────────
+
+export type SectionType = 'quant' | 'verbal' | 'di';
+
+export type SimulationStatus = 'in_progress' | 'completed' | 'abandoned';
+
+export interface SimulationExam {
+  id: string;
+  user_id?: string;
+  created_at: string;
+  completed_at?: string;
+  section_order: SectionType[];
+  status: SimulationStatus;
+  total_score?: number;
+  breaks_enabled: boolean;
+}
+
+export interface SimulationSection {
+  id: string;
+  simulation_exam_id: string;
+  section_type: SectionType;
+  section_order: number;
+  question_set_id?: string;
+  session_id?: string;
+  scaled_score?: number;
+  raw_correct?: number;
+  raw_total?: number;
+  time_used_seconds?: number;
+  questions_skipped?: number;
+  started_at?: string;
+  completed_at?: string;
+  break_taken_after?: boolean;
+}
+
+// ─── Error Categorization ────────────────────────────────────
+
+export type ErrorCategory = 'Content' | 'Process' | 'Habit';
 
 // ─── Question Responses ──────────────────────────────────────
 
@@ -82,6 +126,16 @@ export interface QuestionResponse {
   answer_changes: AnswerChange[];
   first_answer: string | null;
   confidence_rating?: number;
+  // Feature 1: Smart Error Log
+  error_category?: ErrorCategory;
+  note?: string;
+  // Feature 2: Triage
+  triage_triggered?: boolean;
+  // Feature 3: CR Missing Link
+  missing_link?: string;
+  choices_unlocked_at_ms?: number;
+  // Feature 4: RC Passage Map
+  passage_map?: Record<string, string>;
   created_at: string;
 }
 
@@ -102,7 +156,20 @@ export type TrackingEventType =
   | 'question_time_expired'
   | 'confidence_rated'
   | 'exam_submitted'
-  | 'review_mode_started';
+  | 'review_mode_started'
+  // Feature 2: Triage
+  | 'triage_triggered'
+  | 'triage_dismissed'
+  | 'triage_flag_and_next'
+  // Feature 3: CR Missing Link
+  | 'missing_link_written'
+  | 'missing_link_skipped'
+  | 'choices_unlocked'
+  // Feature 4: RC Passage Map
+  | 'passage_map_started'
+  | 'passage_map_completed'
+  | 'passage_map_skipped'
+  | 'rc_questions_unlocked';
 
 export interface TrackingEvent {
   id: string;
@@ -172,16 +239,27 @@ export const DS_CHOICES = {
 
 // ─── Error Log Entry ─────────────────────────────────────────
 
-export type ErrorCategory = 'Content' | 'Process' | 'Habit';
+export type ErrorCategoryType = 'Content' | 'Process' | 'Habit';
 
 export interface ErrorLogEntry {
   question_number: number;
   my_answer: string | null;
   correct_answer: string;
-  error_type?: ErrorCategory;
+  error_type?: ErrorCategoryType;
   topic: string;
   note?: string;
   s1_i_said?: string;
   s2_i_said?: string;
   what_i_should_have_evaluated?: string;
+}
+
+// ─── Pattern Tracker ─────────────────────────────────────────
+
+export interface ErrorPattern {
+  topic: string;
+  category: ErrorCategory;
+  count: number;
+  sessions: string[];
+  lastSeen: string;
+  status: 'EMERGING' | 'WATCH' | 'CRITICAL';
 }
