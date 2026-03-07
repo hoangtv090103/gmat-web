@@ -28,11 +28,25 @@ import {
   faUpload,
   faCircleCheck,
   faFile,
+  faEllipsisVertical,
+  faPencil,
+  faTrash,
+  faListUl,
 } from "@fortawesome/free-solid-svg-icons";
-import { getQuestionSets, getAllSessions, getAllResponses } from "@/lib/db";
+import { getQuestionSets, getAllSessions, getAllResponses, deleteQuestionSet } from "@/lib/db";
 import { QuestionSet, ExamSession, QuestionResponse } from "@/types/gmat";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { FaIcon } from "@/components/ui/fa-icon";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { SetEditModal } from "@/components/question-sets/SetEditModal";
+import { QuestionManagerSheet } from "@/components/question-sets/QuestionManagerSheet";
+import { DeleteConfirmDialog } from "@/components/question-sets/DeleteConfirmDialog";
+import { toast } from "sonner";
 
 type SectionFilter = "all" | "Quantitative" | "Verbal" | "Data Insights";
 type SortOption = "newest" | "oldest" | "name-az" | "name-za" | "questions-desc" | "questions-asc";
@@ -54,7 +68,13 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sectionFilter, setSectionFilter] = useState<SectionFilter>("all");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
-   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+
+  // CRUD state
+  const [editingSet, setEditingSet] = useState<QuestionSet | null>(null);
+  const [managingSet, setManagingSet] = useState<QuestionSet | null>(null);
+  const [deletingSet, setDeletingSet] = useState<QuestionSet | null>(null);
+  const [deleteSetLoading, setDeleteSetLoading] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -148,6 +168,21 @@ export default function DashboardPage() {
     : 0;
   const totalQuestions = sets.reduce((sum, s) => sum + s.total_questions, 0);
 
+  async function handleDeleteSet() {
+    if (!deletingSet) return;
+    setDeleteSetLoading(true);
+    try {
+      await deleteQuestionSet(deletingSet.id);
+      setSets((prev) => prev.filter((s) => s.id !== deletingSet.id));
+      setDeletingSet(null);
+      toast.success("Question set deleted");
+    } catch (err) {
+      toast.error(`Failed to delete: ${err}`);
+    } finally {
+      setDeleteSetLoading(false);
+    }
+  }
+
   function getLastScore(setId: string) {
     const setSession = timeFilteredSessions
       .filter((s) => s.set_id === setId && s.completed_at)
@@ -173,21 +208,53 @@ export default function DashboardPage() {
       >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
-            <CardTitle className="text-base font-semibold line-clamp-2">
+            <CardTitle className="text-base font-semibold line-clamp-2 flex-1 mr-2">
               {qs.name}
             </CardTitle>
-            {lastScore && (
-              <Badge
-                variant={
-                  lastScore.correct / lastScore.total >= 0.7
-                    ? "default"
-                    : "destructive"
-                }
-                className="ml-2 shrink-0"
-              >
-                {lastScore.correct}/{lastScore.total}
-              </Badge>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              {lastScore && (
+                <Badge
+                  variant={lastScore.correct / lastScore.total >= 0.7 ? "default" : "destructive"}
+                >
+                  {lastScore.correct}/{lastScore.total}
+                </Badge>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-slate-400 hover:text-white"
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    <FaIcon icon={faEllipsisVertical} className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-slate-900 border-slate-700">
+                  <DropdownMenuItem
+                    onClick={() => setEditingSet(qs)}
+                    className="cursor-pointer text-slate-200 hover:bg-slate-800 focus:bg-slate-800"
+                  >
+                    <FaIcon icon={faPencil} className="mr-2 h-4 w-4 text-blue-400" />
+                    Edit Set Info
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setManagingSet(qs)}
+                    className="cursor-pointer text-slate-200 hover:bg-slate-800 focus:bg-slate-800"
+                  >
+                    <FaIcon icon={faListUl} className="mr-2 h-4 w-4 text-green-400" />
+                    Manage Questions
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setDeletingSet(qs)}
+                    className="cursor-pointer text-red-400 hover:bg-slate-800 focus:bg-slate-800"
+                  >
+                    <FaIcon icon={faTrash} className="mr-2 h-4 w-4" />
+                    Delete Set
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
           {qs.section && (
             <p className="text-xs text-muted-foreground">
@@ -619,6 +686,32 @@ export default function DashboardPage() {
             : `Showing ${filteredAndSortedSets.length} of ${sets.length} question sets`}
         </div>
       )}
+
+      {/* CRUD modals */}
+      <SetEditModal
+        open={!!editingSet}
+        questionSet={editingSet}
+        onClose={() => setEditingSet(null)}
+        onSaved={(updated) =>
+          setSets((prev) =>
+            prev.map((s) => (s.id === editingSet?.id ? { ...s, ...updated } : s))
+          )
+        }
+      />
+      <QuestionManagerSheet
+        open={!!managingSet}
+        questionSet={managingSet}
+        onClose={() => setManagingSet(null)}
+        onChanged={() => {}}
+      />
+      <DeleteConfirmDialog
+        open={!!deletingSet}
+        title="Delete Question Set"
+        description={`Delete "${deletingSet?.name}" and all its questions? This cannot be undone.`}
+        onConfirm={handleDeleteSet}
+        onCancel={() => setDeletingSet(null)}
+        loading={deleteSetLoading}
+      />
     </div>
   );
 }

@@ -4,6 +4,12 @@ export interface Passage {
   id: string;
   set_id: string;
   passage_text: string;
+  // DI: type of content stored in passage_text
+  passage_type: 'text' | 'table_markdown' | 'image_url';
+  // DI Multi-Source Reasoning: display label for this tab
+  tab_label?: string;
+  // DI Multi-Source Reasoning: groups multiple passages into one question set
+  passage_group_id?: string;
   created_at: string;
 }
 
@@ -44,6 +50,13 @@ export interface Question {
   reasoning?: string;
   // Feature 4: RC passage grouping — passage_id is UUID FK → passages.id
   passage_id?: string;
+  // DI Two-Part Analysis: column header labels
+  two_part_col1_label?: string;
+  two_part_col2_label?: string;
+  // DI Two-Part Analysis: correct answer for Part 2 (Part 1 uses correct_answer)
+  correct_answer2?: string;
+  // DI Multi-Source Reasoning: groups questions to a set of passages
+  passage_group_id?: string;
   created_at: string;
 }
 
@@ -222,6 +235,12 @@ export interface ParsedQuestion {
   s1_verdict?: string;
   s2_verdict?: string;
   reasoning?: string;
+  // DI Two-Part Analysis
+  two_part_col1_label?: string;
+  two_part_col2_label?: string;
+  correct_answer2?: string;
+  // DI Multi-Source / RC grouping
+  passage_group_id?: string;
 }
 
 export interface ParseResult {

@@ -125,7 +125,7 @@ export async function saveQuestionSet(
     for (const [tempKey, text] of passageMap.entries()) {
       const passageId = crypto.randomUUID();
       tempKeyToUuid.set(tempKey, passageId);
-      newPassages.push({ id: passageId, set_id: setId, passage_text: text, created_at: new Date().toISOString() });
+      newPassages.push({ id: passageId, set_id: setId, passage_text: text, passage_type: 'text', created_at: new Date().toISOString() });
     }
     setLocal(STORAGE_KEYS.PASSAGES, [...existingPassages, ...newPassages]);
   }
@@ -217,6 +217,24 @@ export async function getPassageById(passageId: string): Promise<Passage | null>
   }
 
   return getLocal<Passage>(STORAGE_KEYS.PASSAGES).find((p) => p.id === passageId) || null;
+}
+
+export async function getPassagesByGroupId(groupId: string): Promise<Passage[]> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('passages')
+      .select('*')
+      .eq('passage_group_id', groupId)
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
+  return getLocal<Passage>(STORAGE_KEYS.PASSAGES).filter(
+    (p) => p.passage_group_id === groupId
+  );
 }
 
 // ─── Exam Sessions ───────────────────────────────────────────
@@ -577,4 +595,59 @@ export async function deleteQuestionSet(setId: string): Promise<void> {
 
   setLocal(STORAGE_KEYS.QUESTION_SETS, getLocal<QuestionSet>(STORAGE_KEYS.QUESTION_SETS).filter((s) => s.id !== setId));
   setLocal(STORAGE_KEYS.QUESTIONS, getLocal<Question>(STORAGE_KEYS.QUESTIONS).filter((q) => q.set_id !== setId));
+}
+
+export async function updateQuestionSet(
+  id: string,
+  updates: Partial<Pick<QuestionSet, 'name' | 'section' | 'difficulty_range' | 'topics' | 'target' | 'study_date'>>
+): Promise<void> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { error } = await supabase.from('question_sets').update(updates).eq('id', id);
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  const sets = getLocal<QuestionSet>(STORAGE_KEYS.QUESTION_SETS);
+  const idx = sets.findIndex((s) => s.id === id);
+  if (idx >= 0) {
+    sets[idx] = { ...sets[idx], ...updates };
+    setLocal(STORAGE_KEYS.QUESTION_SETS, sets);
+  }
+}
+
+export async function updateQuestion(
+  id: string,
+  updates: Partial<Omit<Question, 'id' | 'set_id' | 'created_at'>>
+): Promise<void> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { error } = await supabase.from('questions').update(updates).eq('id', id);
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  const questions = getLocal<Question>(STORAGE_KEYS.QUESTIONS);
+  const idx = questions.findIndex((q) => q.id === id);
+  if (idx >= 0) {
+    questions[idx] = { ...questions[idx], ...updates };
+    setLocal(STORAGE_KEYS.QUESTIONS, questions);
+  }
+}
+
+export async function deleteQuestion(id: string): Promise<void> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { error } = await supabase.from('questions').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  setLocal(
+    STORAGE_KEYS.QUESTIONS,
+    getLocal<Question>(STORAGE_KEYS.QUESTIONS).filter((q) => q.id !== id)
+  );
 }

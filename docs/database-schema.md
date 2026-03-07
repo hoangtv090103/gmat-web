@@ -28,29 +28,33 @@ Stores imported or AI-generated collections of GMAT questions.
 
 Individual GMAT questions belonging to a set.
 
-| Column            | Type          | Constraints                               | Description                                 |
-| ----------------- | ------------- | ----------------------------------------- | ------------------------------------------- |
-| `id`              | `uuid`        | PK, default `gen_random_uuid()`           |                                             |
-| `set_id`          | `uuid`        | FK → `question_sets.id` ON DELETE CASCADE |                                             |
-| `question_number` | `int`         | NOT NULL                                  | 1-based position within the set             |
-| `question_type`   | `text`        | NOT NULL                                  | See question types below                    |
-| `difficulty`      | `int`         |                                           | GMAT scale, e.g. 500–800                    |
-| `topic`           | `text`        |                                           | Sub-topic, e.g. `'Number Properties'`       |
-| `stem`            | `text`        | NOT NULL                                  | Main question text                          |
-| `statement1`      | `text`        |                                           | Data Sufficiency only                       |
-| `statement2`      | `text`        |                                           | Data Sufficiency only                       |
-| `s1_verdict`      | `text`        |                                           | DS: whether statement 1 alone is sufficient |
-| `s2_verdict`      | `text`        |                                           | DS: whether statement 2 alone is sufficient |
-| `reasoning`       | `text`        |                                           | DS: combined reasoning                      |
-| `choice_a`        | `text`        | NOT NULL                                  | Answer choice A                             |
-| `choice_b`        | `text`        | NOT NULL                                  | Answer choice B                             |
-| `choice_c`        | `text`        | NOT NULL                                  | Answer choice C                             |
-| `choice_d`        | `text`        | NOT NULL                                  | Answer choice D                             |
-| `choice_e`        | `text`        | NOT NULL                                  | Answer choice E                             |
-| `correct_answer`  | `text`        | NOT NULL                                  | `'A'` – `'E'`                               |
-| `explanation`     | `text`        |                                           | Solution explanation                        |
-| `passage_id`      | `uuid`        | FK → `passages.id`                        | RC: groups questions sharing a passage      |
-| `created_at`      | `timestamptz` | NOT NULL, default `now()`                 |                                             |
+| Column                | Type          | Constraints                               | Description                                     |
+| --------------------- | ------------- | ----------------------------------------- | ----------------------------------------------- |
+| `id`                  | `uuid`        | PK, default `gen_random_uuid()`           |                                                 |
+| `set_id`              | `uuid`        | FK → `question_sets.id` ON DELETE CASCADE |                                                 |
+| `question_number`     | `int`         | NOT NULL                                  | 1-based position within the set                 |
+| `question_type`       | `text`        | NOT NULL                                  | See question types below                        |
+| `difficulty`          | `int`         |                                           | GMAT scale, e.g. 500–800                        |
+| `topic`               | `text`        |                                           | Sub-topic, e.g. `'Number Properties'`           |
+| `stem`                | `text`        | NOT NULL                                  | Main question text                              |
+| `statement1`          | `text`        |                                           | Data Sufficiency only                           |
+| `statement2`          | `text`        |                                           | Data Sufficiency only                           |
+| `s1_verdict`          | `text`        |                                           | DS: whether statement 1 alone is sufficient     |
+| `s2_verdict`          | `text`        |                                           | DS: whether statement 2 alone is sufficient     |
+| `reasoning`           | `text`        |                                           | DS: combined reasoning                          |
+| `choice_a`            | `text`        | NOT NULL                                  | Answer choice A                                 |
+| `choice_b`            | `text`        | NOT NULL                                  | Answer choice B                                 |
+| `choice_c`            | `text`        | NOT NULL                                  | Answer choice C                                 |
+| `choice_d`            | `text`        | NOT NULL                                  | Answer choice D                                 |
+| `choice_e`            | `text`        | NOT NULL                                  | Answer choice E                                 |
+| `correct_answer`      | `text`        | NOT NULL                                  | `'A'` – `'E'`                                   |
+| `explanation`         | `text`        |                                           | Solution explanation                            |
+| `passage_id`          | `uuid`        | FK → `passages.id`                        | RC: groups questions sharing a passage          |
+| `two_part_col1_label` | `text`        |                                           | DI Two-Part Analysis: column header labels      |
+| `two_part_col2_label` | `text`        |                                           | DI Two-Part Analysis: column header labels      |
+| `correct_answer2`     | `text`        |                                           | DI Two-Part Analysis: correct answer for Part 2 |
+| `passage_group_id`    | `uuid`        |                                           | DI Multi-Source: groups questions               |
+| `created_at`          | `timestamptz` | NOT NULL, default `now()`                 |                                                 |
 
 **Question types** (`question_type` enum values):
 
@@ -71,12 +75,15 @@ Individual GMAT questions belonging to a set.
 
 Shared passages for Reading Comprehension (and Data Insights multi-part sources).
 
-| Column         | Type          | Constraints                               | Description                          |
-| -------------- | ------------- | ----------------------------------------- | ------------------------------------ |
-| `id`           | `uuid`        | PK, default `gen_random_uuid()`           |                                      |
-| `set_id`       | `uuid`        | FK → `question_sets.id` ON DELETE CASCADE | Question set this passage belongs to |
-| `passage_text` | `text`        | NOT NULL                                  | Full passage text                    |
-| `created_at`   | `timestamptz` | NOT NULL, default `now()`                 |                                      |
+| Column             | Type          | Constraints                               | Description                                 |
+| ------------------ | ------------- | ----------------------------------------- | ------------------------------------------- |
+| `id`               | `uuid`        | PK, default `gen_random_uuid()`           |                                             |
+| `set_id`           | `uuid`        | FK → `question_sets.id` ON DELETE CASCADE | Question set this passage belongs to        |
+| `passage_text`     | `text`        | NOT NULL                                  | Full passage text                           |
+| `passage_type`     | `text`        | NOT NULL, default `'text'`                | `'text'`, `'table_markdown'`, `'image_url'` |
+| `tab_label`        | `text`        |                                           | DI Multi-Source Reasoning tab label         |
+| `passage_group_id` | `uuid`        |                                           | DI Multi-Source group ID                    |
+| `created_at`       | `timestamptz` | NOT NULL, default `now()`                 |                                             |
 
 **Index:** `(set_id)`
 
@@ -261,6 +268,9 @@ create table if not exists passages (
   id           uuid primary key default gen_random_uuid(),
   set_id       uuid not null references question_sets(id) on delete cascade,
   passage_text text not null,
+  passage_type text not null default 'text',
+  tab_label    text,
+  passage_group_id uuid,
   created_at   timestamptz not null default now()
 );
 create index if not exists passages_set_id_idx on passages(set_id);
@@ -287,6 +297,10 @@ create table if not exists questions (
   correct_answer  text not null,
   explanation     text,
   passage_id      uuid references passages(id),
+  two_part_col1_label text,
+  two_part_col2_label text,
+  correct_answer2     text,
+  passage_group_id    uuid,
   created_at      timestamptz not null default now()
 );
 create index if not exists questions_set_id_idx on questions(set_id, question_number);

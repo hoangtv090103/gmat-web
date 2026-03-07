@@ -357,11 +357,15 @@ export default function ResultsPage({
                             r.is_correct ? "text-green-400" : "text-red-400"
                           }
                         >
-                          {r.selected_answer || "—"}
+                          {q.question_type === "Two-Part Analysis" && r.selected_answer?.includes(",")
+                            ? (() => { const [p1, p2] = r.selected_answer.split(","); return `${p1||"—"} / ${p2||"—"}`; })()
+                            : r.selected_answer || "—"}
                         </span>
                         <FaIcon icon={faArrowRight} className="mx-2 h-3 w-3 text-slate-500" />
                         <span className="text-green-400">
-                          {q.correct_answer}
+                          {q.question_type === "Two-Part Analysis" && q.correct_answer2
+                            ? `${q.correct_answer} / ${q.correct_answer2}`
+                            : q.correct_answer}
                         </span>
                         {r.error_category && !r.is_correct && (
                           <Badge
@@ -415,6 +419,54 @@ export default function ResultsPage({
                             </div>
 
                             {/* Answer choices */}
+                            {q.question_type === "Two-Part Analysis" ? (() => {
+                              const [sel1, sel2] = (r.selected_answer || ",").split(",");
+                              const rows = (["A", "B", "C", "D", "E"] as const)
+                                .map((letter) => ({ letter, text: q[`choice_${letter.toLowerCase()}` as `choice_a`] }))
+                                .filter((c) => c.text);
+                              const col1Label = q.two_part_col1_label || "Part 1";
+                              const col2Label = q.two_part_col2_label || "Part 2";
+                              return (
+                                <div className="overflow-x-auto rounded-lg border border-slate-700/50 text-sm">
+                                  <table className="w-full">
+                                    <thead>
+                                      <tr className="border-b border-slate-700/50 bg-slate-800/50">
+                                        <th className="text-left px-3 py-2 text-slate-400 font-medium">Choice</th>
+                                        <th className="text-center px-3 py-2 text-slate-400 font-medium w-28">{col1Label}</th>
+                                        <th className="text-center px-3 py-2 text-slate-400 font-medium w-28">{col2Label}</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {rows.map(({ letter, text }) => (
+                                        <tr key={letter} className="border-b border-slate-700/30">
+                                          <td className="px-3 py-2 text-slate-300"><span className="font-semibold text-slate-500 mr-2">{letter}.</span>{text}</td>
+                                          <td className="px-3 py-2 text-center">
+                                            {sel1 === letter && (
+                                              <span className={q.correct_answer === letter ? "text-green-400" : "text-red-400"}>
+                                                <FaIcon icon={q.correct_answer === letter ? faCircleCheck : faCircleXmark} className="h-4 w-4 mx-auto" />
+                                              </span>
+                                            )}
+                                            {q.correct_answer === letter && sel1 !== letter && (
+                                              <span className="text-green-400/50 text-xs">✓</span>
+                                            )}
+                                          </td>
+                                          <td className="px-3 py-2 text-center">
+                                            {sel2 === letter && (
+                                              <span className={q.correct_answer2 === letter ? "text-green-400" : "text-red-400"}>
+                                                <FaIcon icon={q.correct_answer2 === letter ? faCircleCheck : faCircleXmark} className="h-4 w-4 mx-auto" />
+                                              </span>
+                                            )}
+                                            {q.correct_answer2 === letter && sel2 !== letter && (
+                                              <span className="text-green-400/50 text-xs">✓</span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              );
+                            })() : (
                             <div className="space-y-1.5">
                               {(["A", "B", "C", "D", "E"] as const)
                                 .map((letter) => ({ letter, text: q[`choice_${letter.toLowerCase()}` as `choice_a`] }))
@@ -452,6 +504,7 @@ export default function ResultsPage({
                                   );
                                 })}
                             </div>
+                            )}
 
                             {/* Feature 4: Passage Map */}
                             {r.passage_map &&

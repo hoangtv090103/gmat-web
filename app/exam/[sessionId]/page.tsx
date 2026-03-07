@@ -12,7 +12,16 @@ import {
   saveTrackingEvents,
   updateSession,
   getPassagesBySetId,
+  getPassagesByGroupId,
 } from "@/lib/db";
+import {
+  TwoPartRenderer,
+  TableAnalysisRenderer,
+  MultiSourceRenderer,
+  MultiSourceTabs,
+  GraphicsRenderer,
+  PassageContent,
+} from "@/components/exam/DIRenderers";
 import type { Passage } from "@/types/gmat";
 import { toast } from "sonner";
 import {
@@ -387,6 +396,7 @@ export default function ExamPage({
 
   // ── Passages (loaded once when questions are available) ───
   const [passages, setPassages] = useState<Passage[]>([]);
+  const [groupPassages, setGroupPassages] = useState<Passage[]>([]);
 
   const {
     mode,
@@ -399,6 +409,7 @@ export default function ExamPage({
     totalTimeMs,
     remainingTimeMs,
     selectAnswer,
+    selectAnswer2,
     toggleFlag,
     setConfidence,
     navigateTo,
@@ -421,7 +432,14 @@ export default function ExamPage({
   const isCR = currentQ?.question_type === "Critical Reasoning";
   const isRC =
     currentQ?.question_type === "Reading Comprehension" ||
-    !!currentQ?.passage_id;
+    (!!currentQ?.passage_id &&
+      currentQ?.question_type !== "Table Analysis" &&
+      currentQ?.question_type !== "Graphics Interpretation");
+  const isMSR =
+    currentQ?.question_type === "Multi-Source Reasoning" &&
+    groupPassages.length > 0;
+  const isTableAnalysis = currentQ?.question_type === "Table Analysis";
+  const isGraphics = currentQ?.question_type === "Graphics Interpretation";
   const isSimulation = mode === "simulation";
 
   // Resolve passage text from the passages table (loaded by set_id below)
@@ -430,12 +448,27 @@ export default function ExamPage({
     return passages.find((p) => p.id === currentQ.passage_id)?.passage_text ?? "";
   }, [currentQ, passages]);
 
+  // Single passage for Table Analysis / Graphics Interpretation
+  const currentPassage = useMemo(() => {
+    if (!currentQ?.passage_id) return null;
+    return passages.find((p) => p.id === currentQ.passage_id) ?? null;
+  }, [currentQ, passages]);
+
   // ── Load passages when questions are available ────────────
   useEffect(() => {
     const setId = questions[0]?.set_id;
     if (!setId) return;
     getPassagesBySetId(setId).then(setPassages).catch(() => {});
   }, [questions]);
+
+  // ── Load grouped passages for Multi-Source Reasoning ─────
+  useEffect(() => {
+    if (!currentQ?.passage_group_id) {
+      setGroupPassages([]);
+      return;
+    }
+    getPassagesByGroupId(currentQ.passage_group_id).then(setGroupPassages).catch(() => {});
+  }, [currentQ?.passage_group_id]);
 
   // ── Redirect if no active session ────────────────────────
   useEffect(() => {
@@ -538,10 +571,17 @@ export default function ExamPage({
           session_id: sid,
           question_id: q.id,
           question_order: i + 1,
-          selected_answer: s?.selectedAnswer || null,
-          is_correct: s?.selectedAnswer
-            ? s.selectedAnswer === q.correct_answer
-            : null,
+          selected_answer:
+            q.question_type === "Two-Part Analysis" && s?.selectedAnswer2
+              ? `${s.selectedAnswer || ""},${s.selectedAnswer2}`
+              : s?.selectedAnswer || null,
+          is_correct:
+            q.question_type === "Two-Part Analysis"
+              ? s?.selectedAnswer === q.correct_answer &&
+                s?.selectedAnswer2 === q.correct_answer2
+              : s?.selectedAnswer
+                ? s.selectedAnswer === q.correct_answer
+                : null,
           time_spent_seconds: Math.round((s?.timeSpentMs || 0) / 1000),
           flagged_for_review: s?.flagged || false,
           answer_changes: s?.answerChanges || [],
@@ -712,19 +752,25 @@ export default function ExamPage({
       </header>
 
       {/* ── Main content ── */}
-      <main className={`flex-1 max-w-6xl mx-auto w-full px-4${isRC ? " overflow-hidden" : " py-6"}`}>
-        {isRC ? (
-          /* RC: GMAT-style split layout — passage left, question right */
+      <main className={`flex-1 max-w-6xl mx-auto w-full px-4${(isRC || isMSR || isTableAnalysis || isGraphics) ? " overflow-hidden" : " py-6"}`}>
+        {(isRC || isMSR || isTableAnalysis || isGraphics) ? (
+          /* GMAT-style split layout — passage/sources left, question right */
           <div className="-mx-4 flex h-[calc(100vh-116px)] overflow-hidden">
 
-            {/* ── Left: Passage pane (57%) ── */}
+            {/* ── Left: Passage / Source pane (57%) ── */}
             <div className="flex flex-col border-r border-slate-700/50" style={{ width: "57%" }}>
               {/* Header bar */}
-              <div className="px-6 py-2.5 border-b border-slate-700/50 bg-slate-900/60 flex-shrink-0 flex items-center justify-between">
+              <div className="px-6 py-2.5 border-b border-slate-700/50 bg-slate-900/60 shrink-0 flex items-center justify-between">
                 <span className="text-[10.5px] font-semibold text-slate-400 uppercase tracking-[0.18em]">
-                  Reading Comprehension
+                  {isMSR
+                    ? "Multi-Source Reasoning"
+                    : currentQ?.question_type === "Table Analysis"
+                    ? "Table Analysis"
+                    : currentQ?.question_type === "Graphics Interpretation"
+                    ? "Graphics Interpretation"
+                    : "Reading Comprehension"}
                 </span>
-                {!isSimulation && qs?.passageMapComplete && (
+                {!isSimulation && qs?.passageMapComplete && isRC && !isMSR && (
                   <span className="text-[10.5px] text-green-500/70 font-medium inline-flex items-center gap-2">
                     <FaIcon icon={faCircleCheck} className="h-3 w-3" />
                     Passage Map complete
@@ -732,39 +778,51 @@ export default function ExamPage({
                 )}
               </div>
 
-              {/* Scrollable passage text */}
-              <div className="flex-1 overflow-y-auto bg-[#0B1623]/50">
-                <div className="px-8 py-7">
-                  {passageText ? (
-                    <div className="space-y-[1.1em] text-[13.5px] leading-[1.9] text-slate-100 max-w-[600px]">
-                      {passageText
-                        .split(/\n\n+/)
-                        .filter((p) => p.trim())
-                        .map((para, i) => (
-                          <p key={i}>{para}</p>
-                        ))}
+              {/* MSR: Tabs with source passages */}
+              {isMSR ? (
+                <MultiSourceTabs passages={groupPassages} />
+              ) : (
+                <>
+                  {/* Scrollable passage text (RC / Table Analysis / Graphics) */}
+                  <div className="flex-1 overflow-y-auto bg-[#0B1623]/50">
+                    <div className="px-8 py-7">
+                      {passageText ? (
+                        currentPassage?.passage_type === "table_markdown" ||
+                        currentPassage?.passage_type === "image_url" ? (
+                          <PassageContent passage={currentPassage} />
+                        ) : (
+                          <div className="space-y-[1.1em] text-[13.5px] leading-[1.9] text-slate-100 max-w-[600px]">
+                            {passageText
+                              .split(/\n\n+/)
+                              .filter((p) => p.trim())
+                              .map((para, i) => (
+                                <p key={i}>{para}</p>
+                              ))}
+                          </div>
+                        )
+                      ) : (
+                        <p className="text-slate-500 italic text-sm">
+                          Passage text is not available for this question.
+                        </p>
+                      )}
                     </div>
-                  ) : (
-                    <p className="text-slate-500 italic text-sm">
-                      Passage text is not available for this question.
-                    </p>
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              {/* Passage Map — practice mode only, non-blocking */}
-              {!isSimulation && mode === "practice" && (
-                <div className="border-t border-slate-700/50 flex-shrink-0 overflow-y-auto max-h-[38%] bg-slate-900/40">
-                  <PassageMapInput
-                    passage={passageText || currentQ.stem}
-                    mode={mode}
-                    value={passageMapDraft}
-                    onChange={setPassageMapDraft}
-                    onComplete={handleCompletePassageMap}
-                    onSkip={handleSkipPassageMap}
-                    isComplete={qs?.passageMapComplete || false}
-                  />
-                </div>
+                  {/* Passage Map — practice mode only, RC only */}
+                  {!isSimulation && mode === "practice" && isRC && (
+                    <div className="border-t border-slate-700/50 shrink-0 overflow-y-auto max-h-[38%] bg-slate-900/40">
+                      <PassageMapInput
+                        passage={passageText || currentQ.stem}
+                        mode={mode}
+                        value={passageMapDraft}
+                        onChange={setPassageMapDraft}
+                        onComplete={handleCompletePassageMap}
+                        onSkip={handleSkipPassageMap}
+                        isComplete={qs?.passageMapComplete || false}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -788,17 +846,21 @@ export default function ExamPage({
                   onUnlock={handleUnlockChoices}
                   onSkipML={handleSkipMissingLink}
                   onSelect={selectAnswer}
+                  onSelect2={selectAnswer2}
                   onToggleFlag={toggleFlag}
                   onConfidence={setConfidence}
                   onTriageExpire={handleTriageExpire}
                   currentIndex={currentIndex}
                   totalQuestions={questions.length}
+                  currentPassage={currentPassage}
+                  groupPassages={groupPassages}
+                  isMSRSplit={isMSR}
                 />
               </div>
             </div>
           </div>
         ) : (
-          /* Non-RC: single column */
+          /* Non-split: single column */
           <QuestionPanel
             q={currentQ}
             qs={qs}
@@ -813,11 +875,14 @@ export default function ExamPage({
             onUnlock={handleUnlockChoices}
             onSkipML={handleSkipMissingLink}
             onSelect={selectAnswer}
+            onSelect2={selectAnswer2}
             onToggleFlag={toggleFlag}
             onConfidence={setConfidence}
             onTriageExpire={handleTriageExpire}
             currentIndex={currentIndex}
             totalQuestions={questions.length}
+            currentPassage={currentPassage}
+            groupPassages={groupPassages}
           />
         )}
       </main>
@@ -893,11 +958,15 @@ interface QuestionPanelProps {
   onUnlock: () => void;
   onSkipML: () => void;
   onSelect: (a: string) => void;
+  onSelect2: (a: string) => void;
   onToggleFlag: () => void;
   onConfidence: (r: number) => void;
   onTriageExpire: () => void;
   currentIndex: number;
   totalQuestions: number;
+  currentPassage: import("@/types/gmat").Passage | null;
+  groupPassages: import("@/types/gmat").Passage[];
+  isMSRSplit?: boolean;
 }
 
 function QuestionPanel({
@@ -914,11 +983,15 @@ function QuestionPanel({
   onUnlock,
   onSkipML,
   onSelect,
+  onSelect2,
   onToggleFlag,
   onConfidence,
   onTriageExpire,
   currentIndex,
   totalQuestions,
+  currentPassage,
+  groupPassages,
+  isMSRSplit,
 }: QuestionPanelProps) {
   const isDS = q.question_type === "Data Sufficiency";
   const isReview = mode === "review";
@@ -1031,58 +1104,100 @@ function QuestionPanel({
         </details>
       )}
 
-      {/* Answer choices */}
-      <div
-        className={`space-y-2 transition-all duration-300 ${choicesLocked ? "blur-[4px] pointer-events-none select-none" : ""}`}
-      >
-        {choicesLocked && (
-          <div className="text-center text-muted-foreground py-8">
-            <p>Missing Link required.</p>
-          </div>
-        )}
-        {!choicesLocked &&
-          choices.map(({ letter, text }) => {
-            const isSelected = qs?.selectedAnswer === letter;
-            const isCorrectAns = q.correct_answer === letter;
-            const showResult = isReview;
-            return (
-              <button
-                key={letter}
-                onClick={() => onSelect(letter)}
-                disabled={mode === "review"}
-                className={`w-full text-left p-4 rounded-xl border transition-all duration-150 flex items-start gap-3 group ${
-                  showResult && isCorrectAns
-                    ? "border-green-500/60 bg-green-500/10"
-                    : showResult && isSelected && !isCorrectAns
-                      ? "border-red-500/60 bg-red-500/10"
-                      : isSelected
-                        ? "border-blue-500 bg-blue-500/15 shadow-lg shadow-blue-500/10"
-                        : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600 hover:bg-slate-800/50"
-                }`}
-              >
-                <span
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5 transition-colors ${
+      {/* Answer choices — DI type-specific rendering */}
+      {q.question_type === "Two-Part Analysis" ? (
+        <TwoPartRenderer
+          question={q}
+          selectedAnswer={qs?.selectedAnswer ?? null}
+          selectedAnswer2={qs?.selectedAnswer2 ?? null}
+          onSelect={onSelect}
+          onSelect2={onSelect2}
+          locked={isSimulation}
+          showCorrect={isReview}
+        />
+      ) : q.question_type === "Table Analysis" && currentPassage ? (
+        <TableAnalysisRenderer
+          passage={currentPassage}
+          question={q}
+          selectedAnswer={qs?.selectedAnswer ?? null}
+          onSelect={onSelect}
+          locked={isSimulation}
+          showCorrect={isReview}
+          hideSources
+        />
+      ) : q.question_type === "Multi-Source Reasoning" && groupPassages.length > 0 ? (
+        <MultiSourceRenderer
+          passages={groupPassages}
+          question={q}
+          selectedAnswer={qs?.selectedAnswer ?? null}
+          onSelect={onSelect}
+          locked={isSimulation}
+          showCorrect={isReview}
+          hideSources={isMSRSplit}
+        />
+      ) : q.question_type === "Graphics Interpretation" && currentPassage ? (
+        <GraphicsRenderer
+          passage={currentPassage}
+          question={q}
+          selectedAnswer={qs?.selectedAnswer ?? null}
+          onSelect={onSelect}
+          locked={isSimulation}
+          showCorrect={isReview}
+          hideSources
+        />
+      ) : (
+        <div
+          className={`space-y-2 transition-all duration-300 ${choicesLocked ? "blur-[4px] pointer-events-none select-none" : ""}`}
+        >
+          {choicesLocked && (
+            <div className="text-center text-muted-foreground py-8">
+              <p>Missing Link required.</p>
+            </div>
+          )}
+          {!choicesLocked &&
+            choices.map(({ letter, text }) => {
+              const isSelected = qs?.selectedAnswer === letter;
+              const isCorrectAns = q.correct_answer === letter;
+              const showResult = isReview;
+              return (
+                <button
+                  key={letter}
+                  onClick={() => onSelect(letter)}
+                  disabled={mode === "review"}
+                  className={`w-full text-left p-4 rounded-xl border transition-all duration-150 flex items-start gap-3 group ${
                     showResult && isCorrectAns
-                      ? "bg-green-600 text-white"
+                      ? "border-green-500/60 bg-green-500/10"
                       : showResult && isSelected && !isCorrectAns
-                        ? "bg-red-600 text-white"
+                        ? "border-red-500/60 bg-red-500/10"
                         : isSelected
-                          ? "bg-blue-500 text-white"
-                          : "bg-slate-700 text-slate-400 group-hover:bg-slate-600"
+                          ? "border-blue-500 bg-blue-500/15 shadow-lg shadow-blue-500/10"
+                          : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600 hover:bg-slate-800/50"
                   }`}
                 >
-                  {letter}
-                </span>
-                <span className="text-sm leading-relaxed pt-0.5">{text}</span>
-                {showResult && isCorrectAns && (
-                  <span className="ml-auto text-green-400 text-sm flex-shrink-0">
-                    <FaIcon icon={faCircleCheck} className="h-4 w-4" />
+                  <span
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5 transition-colors ${
+                      showResult && isCorrectAns
+                        ? "bg-green-600 text-white"
+                        : showResult && isSelected && !isCorrectAns
+                          ? "bg-red-600 text-white"
+                          : isSelected
+                            ? "bg-blue-500 text-white"
+                            : "bg-slate-700 text-slate-400 group-hover:bg-slate-600"
+                    }`}
+                  >
+                    {letter}
                   </span>
-                )}
-              </button>
-            );
-          })}
-      </div>
+                  <span className="text-sm leading-relaxed pt-0.5">{text}</span>
+                  {showResult && isCorrectAns && (
+                    <span className="ml-auto text-green-400 text-sm flex-shrink-0">
+                      <FaIcon icon={faCircleCheck} className="h-4 w-4" />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+        </div>
+      )}
 
       {/* Confidence rating (all modes except simulation) */}
       {!isSimulation && qs?.selectedAnswer && (

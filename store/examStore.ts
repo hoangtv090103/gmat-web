@@ -14,6 +14,8 @@ import {
 
 export interface QuestionState {
   selectedAnswer: string | null;
+  // DI Two-Part Analysis: Part 2 selection (Part 1 uses selectedAnswer)
+  selectedAnswer2: string | null;
   firstAnswer: string | null;
   answerChanges: AnswerChange[];
   flagged: boolean;
@@ -74,6 +76,7 @@ interface ExamState {
     totalTimeMs: number;
   }) => void;
   selectAnswer: (answer: string) => void;
+  selectAnswer2: (answer: string) => void;
   deselectAnswer: () => void;
   toggleFlag: () => void;
   setConfidence: (rating: number) => void;
@@ -115,6 +118,7 @@ function makeInitialQState(
 
   return {
     selectedAnswer: null,
+    selectedAnswer2: null,
     firstAnswer: null,
     answerChanges: [],
     flagged: false,
@@ -211,6 +215,18 @@ export const useExamStore = create<ExamState>()(
               firstAnswer: qs.firstAnswer || answer,
               answerChanges: newChanges,
             },
+          },
+        });
+      },
+
+      selectAnswer2: (answer: string) => {
+        const state = get();
+        const idx = state.currentIndex;
+        const qs = state.questionStates[idx] || makeInitialQState('', state.mode, false, 0);
+        set({
+          questionStates: {
+            ...state.questionStates,
+            [idx]: { ...qs, selectedAnswer2: answer },
           },
         });
       },
