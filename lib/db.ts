@@ -642,6 +642,76 @@ export async function updateQuestion(
   }
 }
 
+// ─── Recalculate Session Results ─────────────────────────────
+//
+// After correcting a question's correct_answer, call this to recompute
+// is_correct on all responses in the session and refresh correct_count/score.
+
+export async function recalculateSessionResults(sessionId: string): Promise<{
+  updated: number;
+  correctCount: number;
+  totalCount: number;
+}> {
+  const supabase = getSupabase();
+
+  // Load session, responses, and questions in parallel
+  const session = await getSession(sessionId);
+  if (!session) throw new Error('Session not found');
+
+  const [responses, questions] = await Promise.all([
+    getResponsesBySession(sessionId),
+    getQuestionsBySetId(session.set_id),
+  ]);
+
+  const questionMap = new Map<string, Question>(questions.map((q) => [q.id, q]));
+
+  // Recompute is_correct for each response
+  const updates: Array<{ sessionId: string; questionId: string; isCorrect: boolean | null }> = [];
+  for (const r of responses) {
+    const q = questionMap.get(r.question_id);
+    if (!q) continue;
+    const isCorrect = r.selected_answer !== null
+      ? r.selected_answer === q.correct_answer
+      : null;
+    if (isCorrect !== r.is_correct) {
+      updates.push({ sessionId, questionId: r.question_id, isCorrect });
+    }
+  }
+
+  // Apply updates
+  if (supabase && isSupabaseConfigured()) {
+    for (const u of updates) {
+      await supabase
+        .from('question_responses')
+        .update({ is_correct: u.isCorrect })
+        .eq('session_id', u.sessionId)
+        .eq('question_id', u.questionId);
+    }
+  } else {
+    const stored = getLocal<QuestionResponse>(STORAGE_KEYS.RESPONSES);
+    for (const u of updates) {
+      const idx = stored.findIndex(
+        (r) => r.session_id === u.sessionId && r.question_id === u.questionId
+      );
+      if (idx >= 0) stored[idx] = { ...stored[idx], is_correct: u.isCorrect };
+    }
+    setLocal(STORAGE_KEYS.RESPONSES, stored);
+  }
+
+  // Recalculate session-level stats
+  const updatedIsCorrectMap = new Map(updates.map((u) => [u.questionId, u.isCorrect]));
+  const correctCount = responses.filter((r) => {
+    const override = updatedIsCorrectMap.get(r.question_id);
+    return override !== undefined ? override : r.is_correct;
+  }).length;
+  const totalCount = responses.length;
+  const score = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
+
+  await updateSession(sessionId, { correct_count: correctCount, score });
+
+  return { updated: updates.length, correctCount, totalCount };
+}
+
 export async function deleteQuestion(id: string): Promise<void> {
   const supabase = getSupabase();
 

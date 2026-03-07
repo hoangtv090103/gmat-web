@@ -19,6 +19,7 @@ import {
   getResponsesBySession,
   getQuestionsBySetId,
   updateResponse,
+  recalculateSessionResults,
 } from "@/lib/db";
 import {
   ExamSession,
@@ -85,6 +86,30 @@ export default function ResultsPage({
   const [questions, setQuestions] = useState<Question[]>([]);
   const [expandedQ, setExpandedQ] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [recalculating, setRecalculating] = useState(false);
+
+  const handleRecalculate = async () => {
+    setRecalculating(true);
+    try {
+      const result = await recalculateSessionResults(sessionId);
+      // Reload data to reflect updated is_correct values
+      const [sess, resp] = await Promise.all([
+        getSession(sessionId),
+        getResponsesBySession(sessionId),
+      ]);
+      if (sess) setSession(sess);
+      setResponses(resp);
+      toast.success(
+        `Tính lại xong: ${result.updated} câu được cập nhật, ${result.correctCount}/${result.totalCount} đúng`
+      );
+    } catch (e) {
+      toast.error("Lỗi khi tính lại kết quả");
+      console.error(e);
+    } finally {
+      setRecalculating(false);
+    }
+  };
 
   // Error Log State
   const [filterCat, setFilterCat] = useState<ErrorCategory | "All">("All");
@@ -257,14 +282,26 @@ export default function ResultsPage({
 
   return (
     <div className="min-h-screen p-6 max-w-6xl mx-auto">
-      <Button
-        variant="ghost"
-        onClick={() => router.push("/")}
-        className="mb-6 text-muted-foreground"
-      >
-        <FaIcon icon={faArrowLeft} className="mr-2 h-3.5 w-3.5" />
-        Dashboard
-      </Button>
+      <div className="flex items-center justify-between mb-6">
+        <Button
+          variant="ghost"
+          onClick={() => router.push("/")}
+          className="text-muted-foreground"
+        >
+          <FaIcon icon={faArrowLeft} className="mr-2 h-3.5 w-3.5" />
+          Dashboard
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRecalculate}
+          disabled={recalculating}
+          className="text-xs"
+        >
+          <FaIcon icon={faRepeat} className="mr-1.5 h-3 w-3" />
+          {recalculating ? "Đang tính lại..." : "Tính lại kết quả"}
+        </Button>
+      </div>
 
       {/* ── Score Summary ── */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
