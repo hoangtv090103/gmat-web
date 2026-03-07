@@ -15,7 +15,6 @@ export function registerPerformanceTools(server: McpServer, supabase: SupabaseCl
       try {
         const cutoff = getDateFilter(period);
 
-        // Fetch completed sessions
         let sessionsQuery = supabase
           .from('exam_sessions')
           .select('id, mode, correct_count, total_count, total_time_seconds, completed_at, simulation_section_order, set_id, question_sets(section)')
@@ -46,7 +45,6 @@ export function registerPerformanceTools(server: McpServer, supabase: SupabaseCl
           totalQuestions += total;
           totalTimeSeconds += s.total_time_seconds ?? 0;
 
-          // Determine section from set metadata
           const setSection = (s as { question_sets?: { section?: string } }).question_sets?.section ?? '';
           let sectionKey: string | null = null;
           for (const [key, values] of Object.entries(SECTION_TO_QUESTION_TYPES)) {
@@ -55,7 +53,6 @@ export function registerPerformanceTools(server: McpServer, supabase: SupabaseCl
               break;
             }
           }
-          // Fallback: quant/verbal/di from section string directly
           if (!sectionKey) {
             if (/quant/i.test(setSection)) sectionKey = 'quant';
             else if (/verbal/i.test(setSection)) sectionKey = 'verbal';
@@ -143,6 +140,104 @@ export function registerPerformanceTools(server: McpServer, supabase: SupabaseCl
         });
 
         return textResult({ count: sessions.length, sessions });
+      } catch (err) {
+        return errorResult(String(err));
+      }
+    }
+  );
+
+  // ── get_session_detail ───────────────────────────────────────────────────
+  server.tool(
+    'get_session_detail',
+    'Get per-question time breakdown for a specific exam session. Shows time spent on each question, whether it was correct, and flags slow questions that exceeded the GMAT target time. Use get_session_history first to get session IDs.',
+    {
+      sessionId: z.string().uuid().describe('The session ID to get detail for'),
+    },
+    async ({ sessionId }) => {
+      try {
+        const { data, error } = await supabase
+          .from('question_responses')
+          .select(`
+            question_order, selected_answer, is_correct,
+            time_spent_seconds, flagged_for_review, triage_triggered,
+            confidence_rating, error_category,
+            questions(question_type, topic, difficulty, correct_answer)
+          `)
+          .eq('session_id', sessionId)
+          .order('question_order', { ascending: true });
+
+        if (error) return errorResult(error.message);
+        if (!data || data.length === 0) {
+          return textResult({ message: `No responses found for session ${sessionId}` });
+        }
+
+        const TARGETS: Record<string, number> = {
+          'Problem Solving': 120, 'Data Sufficiency': 120,
+          'Critical Reasoning': 120, 'Reading Comprehension': 150,
+          'Multi-Source Reasoning': 150, 'Table Analysis': 120,
+          'Graphics Interpretation': 120, 'Two-Part Analysis': 150,
+        };
+
+        type Row = {
+          question_order: number;
+          selected_answer: string | null;
+          is_correct: boolean | null;
+          time_spent_seconds: number;
+          flagged_for_review: boolean | null;
+          triage_triggered: boolean | null;
+          confidence_rating: number | null;
+          error_category: string | null;
+          questions: { question_type: string; topic?: string; difficulty?: number; correct_answer: string } | { question_type: string; topic?: string; difficulty?: number; correct_answer: string }[] | null;
+        };
+
+        let totalTime = 0;
+        let slowCount = 0;
+        let correctCount = 0;
+
+        const questions = (data as unknown as Row[]).map(r => {
+          const q = Array.isArray(r.questions) ? r.questions[0] : r.questions;
+          const target = q ? (TARGETS[q.question_type] ?? 120) : 120;
+          const isOver = r.time_spent_seconds > target;
+          if (isOver) slowCount++;
+          if (r.is_correct) correctCount++;
+          totalTime += r.time_spent_seconds;
+
+          return {
+            questionNumber: r.question_order + 1,
+            questionType: q?.question_type ?? 'Unknown',
+            topic: q?.topic ?? null,
+            difficulty: q?.difficulty ?? null,
+            timeSeconds: r.time_spent_seconds,
+            timeFormatted: `${Math.floor(r.time_spent_seconds / 60)}m ${r.time_spent_seconds % 60}s`,
+            targetSeconds: target,
+            targetFormatted: `${Math.floor(target / 60)}m ${target % 60}s`,
+            overTarget: isOver,
+            overBySeconds: isOver ? r.time_spent_seconds - target : 0,
+            isCorrect: r.is_correct,
+            userAnswer: r.selected_answer,
+            correctAnswer: q?.correct_answer ?? null,
+            flagged: r.flagged_for_review,
+            triageTriggered: r.triage_triggered,
+            confidenceRating: r.confidence_rating,
+            errorCategory: r.error_category,
+          };
+        });
+
+        const avgTime = data.length > 0 ? Math.round(totalTime / data.length) : 0;
+
+        return textResult({
+          sessionId,
+          totalQuestions: data.length,
+          correctCount,
+          accuracy: `${toPercent(correctCount, data.length)}%`,
+          totalTimeSeconds: totalTime,
+          totalTimeFormatted: `${Math.floor(totalTime / 60)}m ${totalTime % 60}s`,
+          avgTimePerQuestionSeconds: avgTime,
+          avgTimeFormatted: `${Math.floor(avgTime / 60)}m ${avgTime % 60}s`,
+          slowQuestionsCount: slowCount,
+          slowQuestionsPercent: `${toPercent(slowCount, data.length)}%`,
+          questions,
+        });
       } catch (err) {
         return errorResult(String(err));
       }

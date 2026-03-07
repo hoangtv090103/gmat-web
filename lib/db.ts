@@ -378,13 +378,18 @@ export async function updateResponse(
   const supabase = getSupabase();
 
   if (supabase && isSupabaseConfigured()) {
-    const { error } = await supabase
-      .from('question_responses')
-      .update(updates)
-      .eq('session_id', sessionId)
-      .eq('question_id', questionId);
-    if (error) throw new Error(error.message);
-    return;
+    try {
+      const { error } = await supabase
+        .from('question_responses')
+        .update(updates)
+        .eq('session_id', sessionId)
+        .eq('question_id', questionId);
+      if (error) throw new Error(error.message);
+      return;
+    } catch (e) {
+      if (!(e instanceof TypeError && (e as TypeError).message.includes('fetch'))) throw e;
+      // Network error — fall through to localStorage
+    }
   }
 
   // localStorage fallback

@@ -1,4 +1,8 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+
+// Load .env with absolute path (works regardless of working directory)
+dotenv.config({ path: (process.env.HOME ?? '') + '/gmat-web/mcp-server/.env' });
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { getSupabase } from './supabase.js';
@@ -9,6 +13,8 @@ import { registerSimulationTools } from './tools/simulation.js';
 import { registerAdvancedTools } from './tools/advanced.js';
 import { registerRecommendTools } from './tools/recommend.js';
 import { registerWriteTools } from './tools/write.js';
+import { registerDIWriteTools } from './tools/di-write.js';
+import { registerCrudTools } from './tools/crud.js';
 
 async function main(): Promise<void> {
   const server = new McpServer({
@@ -18,7 +24,6 @@ async function main(): Promise<void> {
 
   const supabase = getSupabase();
 
-  // Register all tool groups
   registerPerformanceTools(server, supabase);
   registerTopicsTools(server, supabase);
   registerAnswersTools(server, supabase);
@@ -26,12 +31,13 @@ async function main(): Promise<void> {
   registerAdvancedTools(server, supabase);
   registerRecommendTools(server, supabase);
   registerWriteTools(server, supabase);
+  registerDIWriteTools(server, supabase);
+  registerCrudTools(server, supabase);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  // Log to stderr (stdout is reserved for MCP protocol)
-  process.stderr.write('GMAT Coach MCP server started. 13 tools ready.\n');
+  process.stderr.write('GMAT Coach MCP server started. 24 tools ready.\n');
 }
 
 main().catch(err => {
