@@ -67,7 +67,7 @@ import {
 type AnalyticsSectionFilter = "all" | SectionType;
 
 const QUESTION_TYPE_TO_SECTION: Record<QuestionType, SectionType> = {
-  "Data Sufficiency": "quant",
+  "Data Sufficiency": "di",
   "Problem Solving": "quant",
   "Reading Comprehension": "verbal",
   "Critical Reasoning": "verbal",

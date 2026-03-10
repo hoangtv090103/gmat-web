@@ -440,6 +440,7 @@ export default function ExamPage({
     groupPassages.length > 0;
   const isTableAnalysis = currentQ?.question_type === "Table Analysis";
   const isGraphics = currentQ?.question_type === "Graphics Interpretation";
+  const isGraphicsSplit = isGraphics && !!currentQ?.passage_id;
   const isSimulation = mode === "simulation";
 
   // Resolve passage text from the passages table (loaded by set_id below)
@@ -521,14 +522,34 @@ export default function ExamPage({
     };
   }, [isActive, sessionStartTime, mode, totalTimeMs]);
 
+  // ── Bell sound for triage expire ─────────────────────────
+  const playBell = useCallback(() => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.6);
+      gain.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 1.2);
+      osc.onended = () => ctx.close();
+    } catch {}
+  }, []);
+
   // ── Triage fire logic ─────────────────────────────────────
   const handleTriageExpire = useCallback(() => {
     if (triageFiredRef.current || triageDismissedRef.current) return;
     if (qs?.selectedAnswer) return; // already answered
+    playBell();
     triggerTriage();
     setShowTriageBanner(true);
     triageFiredRef.current = true;
-  }, [qs?.selectedAnswer, triggerTriage]);
+  }, [qs?.selectedAnswer, triggerTriage, playBell]);
 
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
@@ -752,8 +773,8 @@ export default function ExamPage({
       </header>
 
       {/* ── Main content ── */}
-      <main className={`flex-1 max-w-6xl mx-auto w-full px-4${(isRC || isMSR || isTableAnalysis || isGraphics) ? " overflow-hidden" : " py-6"}`}>
-        {(isRC || isMSR || isTableAnalysis || isGraphics) ? (
+      <main className={`flex-1 max-w-6xl mx-auto w-full px-4${(isRC || isMSR || isTableAnalysis || isGraphicsSplit) ? " overflow-hidden" : " py-6"}`}>
+        {(isRC || isMSR || isTableAnalysis || isGraphicsSplit) ? (
           /* GMAT-style split layout — passage/sources left, question right */
           <div className="-mx-4 flex h-[calc(100vh-116px)] overflow-hidden">
 
