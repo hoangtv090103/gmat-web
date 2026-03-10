@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,11 +55,8 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
+  Bar,
+  BarChart,
   ScatterChart,
   Scatter,
   Cell,
@@ -104,6 +103,13 @@ function formatTimeShort(s: number) {
 
 export default function AnalyticsPage() {
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const gridColor = isDark ? "#1e293b" : "#e2e8f0";
+  const tickColor = isDark ? "#94a3b8" : "#475569";
+  const tooltipBg = isDark ? "#0f172a" : "#ffffff";
+  const tooltipBorder = isDark ? "#1e293b" : "#e2e8f0";
+
   const [sessions, setSessions] = useState<ExamSession[]>([]);
   const [responses, setResponses] = useState<QuestionResponse[]>([]);
   const [sets, setSets] = useState<QuestionSet[]>([]);
@@ -275,12 +281,13 @@ export default function AnalyticsPage() {
       typeStats[type].total++;
       if (r.is_correct) typeStats[type].correct++;
     });
-    return Object.entries(typeStats).map(([type, data]) => ({
-      type: type.length > 15 ? type.substring(0, 15) + "..." : type,
-      fullType: type,
-      accuracy: data.total ? Math.round((data.correct / data.total) * 100) : 0,
-      count: data.total,
-    }));
+    return Object.entries(typeStats)
+      .map(([type, data]) => ({
+        topic: type,
+        accuracy: data.total ? Math.round((data.correct / data.total) * 100) : 0,
+        count: data.total,
+      }))
+      .sort((a, b) => a.accuracy - b.accuracy);
   }, [filteredResponses, qMap]);
 
   // ─── Answer Change Analysis ──────────────────────────────
@@ -454,12 +461,12 @@ export default function AnalyticsPage() {
 
   const tooltipStyle = {
     contentStyle: {
-      background: "#0f172a",
-      border: "1px solid #1e293b",
+      background: tooltipBg,
+      border: `1px solid ${tooltipBorder}`,
       borderRadius: 8,
     },
-    labelStyle: { color: "#94a3b8" },
-    itemStyle: { color: "#e2e8f0" },
+    labelStyle: { color: tickColor },
+    itemStyle: { color: isDark ? "#e2e8f0" : "#0f172a" },
   };
 
   const SECTION_FILTER_OPTIONS: { id: AnalyticsSectionFilter; label: string }[] =
@@ -473,14 +480,17 @@ export default function AnalyticsPage() {
   return (
     <div className="min-h-screen p-6 max-w-7xl mx-auto">
       <header className="mb-8 animate-fade-in">
-        <Button
-          variant="ghost"
-          onClick={() => router.push("/")}
-          className="mb-4 text-muted-foreground"
-        >
-          <FaIcon icon={faArrowLeft} className="mr-2 h-3.5 w-3.5" />
-          Dashboard
-        </Button>
+        <div className="flex items-center justify-between mb-4">
+          <Button
+            variant="ghost"
+            onClick={() => router.push("/")}
+            className="text-muted-foreground"
+          >
+            <FaIcon icon={faArrowLeft} className="mr-2 h-3.5 w-3.5" />
+            Dashboard
+          </Button>
+          <ThemeToggle />
+        </div>
         <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
           Performance Analytics
         </h1>
@@ -554,13 +564,13 @@ export default function AnalyticsPage() {
               <CardContent>
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart data={simScoreData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                    <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 11 }} />
-                    <YAxis domain={[205, 805]} tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                    <XAxis dataKey="date" tick={{ fill: tickColor, fontSize: 11 }} />
+                    <YAxis domain={[205, 805]} tick={{ fill: tickColor, fontSize: 11 }} />
                     <Tooltip
-                      contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
-                      labelStyle={{ color: "#94a3b8" }}
-                      itemStyle={{ color: "#e2e8f0" }}
+                      contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8 }}
+                      labelStyle={{ color: tickColor }}
+                      itemStyle={{ color: isDark ? "#e2e8f0" : "#0f172a" }}
                       formatter={(v, name) => {
                         if (name === "total") return [`${v}`, "Total Score"];
                         if (name === "quant") return [`${v}`, "Quant (60-90)"];
@@ -576,7 +586,7 @@ export default function AnalyticsPage() {
                         <Line type="monotone" dataKey="quant" stroke="#3B82F6" strokeWidth={1.5} strokeDasharray="4 2" dot={{ fill: "#3B82F6", r: 3 }} name="quant" />
                         <Line type="monotone" dataKey="verbal" stroke="#8B5CF6" strokeWidth={1.5} strokeDasharray="4 2" dot={{ fill: "#8B5CF6", r: 3 }} name="verbal" />
                         <Line type="monotone" dataKey="di" stroke="#10B981" strokeWidth={1.5} strokeDasharray="4 2" dot={{ fill: "#10B981", r: 3 }} name="di" />
-                        <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8" }} />
+                        <Legend wrapperStyle={{ fontSize: 11, color: tickColor }} />
                       </>
                     )}
                   </LineChart>
@@ -642,15 +652,15 @@ export default function AnalyticsPage() {
               <CardContent>
                 <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={accuracyOverTime}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                     <XAxis
                       dataKey="session"
-                      tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      tick={{ fill: tickColor, fontSize: 11 }}
                       tickFormatter={(v) => `S${v}`}
                     />
                     <YAxis
                       domain={[0, 100]}
-                      tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      tick={{ fill: tickColor, fontSize: 11 }}
                     />
                     <Tooltip
                       {...tooltipStyle}
@@ -680,13 +690,13 @@ export default function AnalyticsPage() {
               <CardContent>
                 <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={timeOverTime}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                     <XAxis
                       dataKey="session"
-                      tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      tick={{ fill: tickColor, fontSize: 11 }}
                       tickFormatter={(v) => `S${v}`}
                     />
-                    <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                    <YAxis tick={{ fill: tickColor, fontSize: 11 }} />
                     <Tooltip
                       {...tooltipStyle}
                       labelFormatter={(_, payload) => payload?.[0]?.payload?.label ?? ""}
@@ -705,35 +715,49 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
-          {/* ─── Radar + Behavioral ────────────────────────── */}
+          {/* ─── Bar Chart (Accuracy by Topic) + Behavioral ─── */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {/* Radar Chart by Type */}
+            {/* Horizontal Bar Chart by Topic */}
             {radarData.length > 0 && (
-              <Card className="glass-card animate-slide-up">
+              <Card className="glass-card animate-slide-up md:col-span-2">
                 <CardHeader>
                   <CardTitle className="text-sm">Accuracy by Topic</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <RadarChart data={radarData}>
-                      <PolarGrid stroke="#1e293b" />
-                      <PolarAngleAxis
-                        dataKey="type"
-                        tick={{ fill: "#94a3b8", fontSize: 10 }}
-                      />
-                      <PolarRadiusAxis
-                        domain={[0, 100]}
-                        tick={{ fill: "#64748b", fontSize: 10 }}
-                      />
-                      <Radar
-                        dataKey="accuracy"
-                        stroke="#3B82F6"
-                        fill="#3B82F6"
-                        fillOpacity={0.2}
-                        strokeWidth={2}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
+                  <div style={{ overflowY: "auto", maxHeight: 480 }}>
+                    <ResponsiveContainer width="100%" height={Math.max(300, radarData.length * 28)}>
+                      <BarChart
+                        data={radarData}
+                        layout="vertical"
+                        margin={{ top: 4, right: 48, left: 4, bottom: 4 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
+                        <XAxis type="number" domain={[0, 100]} tick={{ fill: tickColor, fontSize: 11 }} unit="%" />
+                        <YAxis
+                          type="category"
+                          dataKey="topic"
+                          width={200}
+                          tick={{ fill: tickColor, fontSize: 11 }}
+                        />
+                        <Tooltip
+                          formatter={(val, _name, item) =>
+                            [`${val ?? 0}% (${(item.payload as { count?: number })?.count ?? 0} attempts)`, "Accuracy"]
+                          }
+                          contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8 }}
+                          labelStyle={{ color: tickColor }}
+                          itemStyle={{ color: isDark ? "#e2e8f0" : "#0f172a" }}
+                        />
+                        <Bar dataKey="accuracy" radius={[0, 4, 4, 0]} maxBarSize={18}>
+                          {radarData.map((entry, i) => (
+                            <Cell
+                              key={i}
+                              fill={entry.accuracy >= 70 ? "#22c55e" : entry.accuracy >= 50 ? "#f59e0b" : "#ef4444"}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -829,17 +853,17 @@ export default function AnalyticsPage() {
               <CardContent>
                 <ResponsiveContainer width="100%" height={200}>
                   <ScatterChart>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
                     <XAxis
                       dataKey="time"
                       name="Time (s)"
-                      tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      tick={{ fill: tickColor, fontSize: 11 }}
                     />
                     <YAxis
                       dataKey="correct"
                       name="Correct"
                       domain={[0, 1]}
-                      tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      tick={{ fill: tickColor, fontSize: 11 }}
                       ticks={[0, 1]}
                       tickFormatter={(v) => (v === 1 ? "Correct" : "Wrong")}
                     />

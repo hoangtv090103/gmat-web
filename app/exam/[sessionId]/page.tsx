@@ -721,9 +721,9 @@ export default function ExamPage({
   const choicesLocked = !isSimulation && !qs?.choicesUnlocked;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0A1628]">
+    <div className="min-h-screen flex flex-col bg-[var(--exam-bg)]">
       {/* ── Top Bar ── */}
-      <header className="border-b border-slate-800 bg-[#0A1628]/95 backdrop-blur sticky top-0 z-30">
+      <header className="border-b border-[var(--exam-header-border)] bg-[var(--exam-header-bg)]/95 backdrop-blur sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-4">
           {/* Progress dots */}
           <div className="flex gap-1 flex-1 overflow-x-auto">
@@ -779,10 +779,10 @@ export default function ExamPage({
           <div className="-mx-4 flex h-[calc(100vh-116px)] overflow-hidden">
 
             {/* ── Left: Passage / Source pane (57%) ── */}
-            <div className="flex flex-col border-r border-slate-700/50" style={{ width: "57%" }}>
+            <div className="flex flex-col border-r border-[var(--exam-border)]" style={{ width: "57%" }}>
               {/* Header bar */}
-              <div className="px-6 py-2.5 border-b border-slate-700/50 bg-slate-900/60 shrink-0 flex items-center justify-between">
-                <span className="text-[10.5px] font-semibold text-slate-400 uppercase tracking-[0.18em]">
+              <div className="px-6 py-2.5 border-b border-[var(--exam-border)] bg-[var(--exam-section-header-bg)] shrink-0 flex items-center justify-between">
+                <span className="text-[10.5px] font-semibold text-[var(--exam-text-muted)] uppercase tracking-[0.18em]">
                   {isMSR
                     ? "Multi-Source Reasoning"
                     : currentQ?.question_type === "Table Analysis"
@@ -805,14 +805,14 @@ export default function ExamPage({
               ) : (
                 <>
                   {/* Scrollable passage text (RC / Table Analysis / Graphics) */}
-                  <div className="flex-1 overflow-y-auto bg-[#0B1623]/50">
+                  <div className="flex-1 overflow-y-auto bg-[var(--exam-pane-bg)]">
                     <div className="px-8 py-7">
                       {passageText ? (
                         currentPassage?.passage_type === "table_markdown" ||
                         currentPassage?.passage_type === "image_url" ? (
                           <PassageContent passage={currentPassage} />
                         ) : (
-                          <div className="space-y-[1.1em] text-[13.5px] leading-[1.9] text-slate-100 max-w-[600px]">
+                          <div className="space-y-[1.1em] text-[13.5px] leading-[1.9] text-[var(--exam-text)] max-w-[600px]">
                             {passageText
                               .split(/\n\n+/)
                               .filter((p) => p.trim())
@@ -831,7 +831,7 @@ export default function ExamPage({
 
                   {/* Passage Map — practice mode only, RC only */}
                   {!isSimulation && mode === "practice" && isRC && (
-                    <div className="border-t border-slate-700/50 shrink-0 overflow-y-auto max-h-[38%] bg-slate-900/40">
+                    <div className="border-t border-[var(--exam-border)] shrink-0 overflow-y-auto max-h-[38%] bg-[var(--exam-section-header-bg)]">
                       <PassageMapInput
                         passage={passageText || currentQ.stem}
                         mode={mode}
@@ -849,7 +849,7 @@ export default function ExamPage({
 
             {/* ── Right: Question pane (43%) ── */}
             <div
-              className="flex flex-col overflow-y-auto bg-[#0A1628]"
+              className="flex flex-col overflow-y-auto bg-[var(--exam-panel-bg)]"
               style={{ width: "43%" }}
             >
               <div className="px-7 py-6">
@@ -909,7 +909,7 @@ export default function ExamPage({
       </main>
 
       {/* ── Bottom navigation ── */}
-      <footer className="border-t border-slate-800 bg-[#0A1628]/95 backdrop-blur sticky bottom-0">
+      <footer className="border-t border-[var(--exam-header-border)] bg-[var(--exam-header-bg)]/95 backdrop-blur sticky bottom-0">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           {isSimulation ? (
             <div />

@@ -40,10 +40,71 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-exam-bg: var(--exam-bg);
+  --color-exam-pane: var(--exam-pane-bg);
+  --color-exam-panel: var(--exam-panel-bg);
+  --color-exam-section-header: var(--exam-section-header-bg);
 }
 
+/* ─── Light mode (default) ────────────────────────────────── */
 :root {
   --radius: 0.625rem;
+  --background: oklch(0.97 0.004 250);
+  --foreground: oklch(0.13 0.028 262);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.13 0.028 262);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.13 0.028 262);
+  --primary: oklch(0.623 0.214 259.8);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.95 0.008 250);
+  --secondary-foreground: oklch(0.25 0.025 262);
+  --muted: oklch(0.96 0.005 250);
+  --muted-foreground: oklch(0.45 0.012 250);
+  --accent: oklch(0.95 0.008 250);
+  --accent-foreground: oklch(0.25 0.025 262);
+  --destructive: oklch(0.55 0.2 25);
+  --border: oklch(0.91 0.008 250);
+  --input: oklch(0.91 0.008 250);
+  --ring: oklch(0.623 0.214 259.8);
+  --chart-1: oklch(0.623 0.214 259.8);
+  --chart-2: oklch(0.55 0.15 160);
+  --chart-3: oklch(0.6 0.15 50);
+  --chart-4: oklch(0.55 0.15 300);
+  --chart-5: oklch(0.55 0.15 100);
+  --sidebar-background: oklch(0.96 0.005 250);
+  --sidebar-foreground: oklch(0.25 0.025 262);
+  --sidebar-primary: oklch(0.623 0.214 259.8);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.93 0.008 250);
+  --sidebar-accent-foreground: oklch(0.25 0.025 262);
+  --sidebar-border: oklch(0.91 0.008 250);
+  --sidebar-ring: oklch(0.623 0.214 259.8);
+
+  /* GMAT accent colors */
+  --gmat-navy: #0a1628;
+  --gmat-blue: #3b82f6;
+  --gmat-blue-glow: rgba(59, 130, 246, 0.15);
+  --gmat-green: #10b981;
+  --gmat-red: #ef4444;
+  --gmat-yellow: #f59e0b;
+  --gmat-orange: #f97316;
+  --gmat-purple: #8b5cf6;
+
+  /* Exam-specific semantic tokens */
+  --exam-bg: #f5f6f8;
+  --exam-header-bg: #0a1628;
+  --exam-header-border: #1e3a5f;
+  --exam-pane-bg: #f0f2f5;
+  --exam-panel-bg: #ffffff;
+  --exam-section-header-bg: #eef0f4;
+  --exam-border: #e2e8f0;
+  --exam-text: #0f172a;
+  --exam-text-muted: #475569;
+}
+
+/* ─── Dark mode ───────────────────────────────────────────── */
+.dark {
   --background: oklch(0.08 0.02 250);
   --foreground: oklch(0.95 0.01 250);
   --card: oklch(0.12 0.025 250);
@@ -75,23 +136,21 @@
   --sidebar-accent-foreground: oklch(0.85 0.01 250);
   --sidebar-border: oklch(0.22 0.03 250);
   --sidebar-ring: oklch(0.65 0.18 250);
-}
 
-/* ─── Custom GMAT Colors ──────────────────────────────────── */
-:root {
-  --gmat-navy: #0a1628;
-  --gmat-blue: #3b82f6;
-  --gmat-blue-glow: rgba(59, 130, 246, 0.15);
-  --gmat-green: #10b981;
-  --gmat-red: #ef4444;
-  --gmat-yellow: #f59e0b;
-  --gmat-orange: #f97316;
-  --gmat-purple: #8b5cf6;
+  --exam-bg: #0A1628;
+  --exam-header-bg: #0A1628;
+  --exam-header-border: #1e293b;
+  --exam-pane-bg: #0B1623;
+  --exam-panel-bg: #0A1628;
+  --exam-section-header-bg: rgba(15, 23, 42, 0.6);
+  --exam-border: rgba(71, 85, 105, 0.5);
+  --exam-text: #f1f5f9;
+  --exam-text-muted: #94a3b8;
 }
 
 /* ─── Base ─────────────────────────────────────────────────── */
 body {
-  background: var(--gmat-navy);
+  background: var(--background);
   color: var(--foreground);
   font-family:
     "Inter",
@@ -165,23 +224,36 @@ body {
 
 /* ─── Glassmorphism ────────────────────────────────────────── */
 .glass {
-  background: rgba(15, 25, 50, 0.6);
+  background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(59, 130, 246, 0.12);
 }
 
+.dark .glass {
+  background: rgba(15, 25, 50, 0.6);
+}
+
 .glass-card {
-  background: rgba(15, 25, 50, 0.4);
+  background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(59, 130, 246, 0.08);
   transition: all 0.3s ease;
 }
 
+.dark .glass-card {
+  background: rgba(15, 25, 50, 0.4);
+}
+
 .glass-card:hover {
-  background: rgba(15, 25, 50, 0.6);
+  background: rgba(255, 255, 255, 0.85);
   border-color: rgba(59, 130, 246, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.dark .glass-card:hover {
+  background: rgba(15, 25, 50, 0.6);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
@@ -228,28 +300,45 @@ body {
   cursor: pointer;
   padding: 12px 16px;
   border-radius: 8px;
-  border: 1px solid rgba(59, 130, 246, 0.1);
+  border: 1px solid #e2e8f0;
   transition: all 0.2s ease;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.dark .answer-choice {
   background: rgba(15, 25, 50, 0.3);
+  border-color: rgba(59, 130, 246, 0.1);
+  color: inherit;
 }
 
 .answer-choice:hover {
+  background: #eff6ff;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.dark .answer-choice:hover {
   background: rgba(59, 130, 246, 0.08);
   border-color: rgba(59, 130, 246, 0.25);
 }
 
 .answer-choice.selected {
-  background: rgba(59, 130, 246, 0.15);
+  background: #eff6ff;
   border-color: var(--gmat-blue);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.dark .answer-choice.selected {
+  background: rgba(59, 130, 246, 0.15);
   box-shadow: 0 0 12px var(--gmat-blue-glow);
 }
 
 .answer-choice.correct {
-  background: rgba(16, 185, 129, 0.1);
+  background: rgba(16, 185, 129, 0.08);
   border-color: var(--gmat-green);
 }
 
 .answer-choice.incorrect {
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(239, 68, 68, 0.08);
   border-color: var(--gmat-red);
 }
