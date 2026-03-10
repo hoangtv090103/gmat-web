@@ -563,7 +563,7 @@ export default function ExamPage({
       if (e.key === "ArrowRight" || e.key === "n") navigateNext();
       if (!isSimulation && (e.key === "ArrowLeft" || e.key === "b")) navigateBack();
       if (!isSimulation && e.key === "f") toggleFlag();
-      if (["a", "b", "c", "d", "e"].includes(e.key.toLowerCase())) {
+      if (mode !== "review" && ["a", "b", "c", "d", "e"].includes(e.key.toLowerCase())) {
         const letter = e.key.toUpperCase();
         if (qs?.choicesUnlocked && qs?.passageMapComplete) selectAnswer(letter);
       }
@@ -575,6 +575,8 @@ export default function ExamPage({
 
   const handleSubmit = async () => {
     submitExam();
+    // Skip saving data in review mode — session is already persisted
+    if (mode === "review") return;
     // Persist data
     try {
       // Use getState() to read fresh state after submitExam()/recordQuestionTime() ran
@@ -761,14 +763,27 @@ export default function ExamPage({
               : `+${formatTime(remainingTimeMs)}`}
           </div>
 
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs"
-            onClick={handleSubmit}
-          >
-            Submit
-          </Button>
+          {mode === "review" ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-slate-500/40 text-slate-300 hover:bg-slate-500/10 text-xs"
+              onClick={() => router.push("/")}
+            >
+              <span className="inline-flex items-center gap-2">
+                <FaIcon icon={faArrowLeft} className="h-3 w-3" /> Dashboard
+              </span>
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs"
+              onClick={handleSubmit}
+            >
+              Submit
+            </Button>
+          )}
         </div>
       </header>
 
@@ -1238,11 +1253,11 @@ function QuestionPanel({
 
       {/* Review mode explanation */}
       {isReview && q.explanation && (
-        <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700/50">
-          <h4 className="text-sm font-semibold text-blue-400 mb-2">
+        <div className="mt-4 p-4 bg-slate-800/60 rounded-xl border border-slate-600/60">
+          <h4 className="text-sm font-semibold text-blue-300 mb-2">
             Explanation
           </h4>
-          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+          <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
             {q.explanation}
           </p>
         </div>
