@@ -1031,7 +1031,7 @@ function QuestionPanel({
           </Badge>
           <Badge
             variant="outline"
-            className="border-slate-600 text-slate-400 text-xs"
+            className="border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 text-xs"
           >
             {q.difficulty}
           </Badge>
@@ -1071,7 +1071,7 @@ function QuestionPanel({
       </div>
 
       {/* Question stem */}
-      <div className="bg-slate-800/40 rounded-xl p-5 border border-slate-700/50">
+      <div className="bg-white dark:bg-slate-800/40 rounded-xl p-5 border border-slate-200 dark:border-slate-700/50">
         {isDS && (q.statement1 || q.statement2) ? (
           <div className="space-y-4">
             <p className="text-base leading-relaxed">{q.stem}</p>
@@ -1119,7 +1119,7 @@ function QuestionPanel({
               My Missing Link (click to expand)
             </span>
           </summary>
-          <div className="p-3 bg-blue-500/5 rounded-lg border border-blue-500/20 text-slate-300 leading-relaxed">
+          <div className="p-3 bg-blue-50 dark:bg-blue-500/5 rounded-lg border border-blue-200 dark:border-blue-500/20 text-slate-600 dark:text-slate-300 leading-relaxed">
             {qs.missingLink}
           </div>
         </details>
@@ -1192,7 +1192,7 @@ function QuestionPanel({
                         ? "border-red-500/60 bg-red-500/10"
                         : isSelected
                           ? "border-blue-500 bg-blue-500/15 shadow-lg shadow-blue-500/10"
-                          : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600 hover:bg-slate-800/50"
+                          : "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700/50 dark:bg-slate-800/30 dark:hover:border-slate-600 dark:hover:bg-slate-800/50"
                   }`}
                 >
                   <span
@@ -1203,7 +1203,7 @@ function QuestionPanel({
                           ? "bg-red-600 text-white"
                           : isSelected
                             ? "bg-blue-500 text-white"
-                            : "bg-slate-700 text-slate-400 group-hover:bg-slate-600"
+                            : "bg-slate-200 text-slate-600 group-hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-400 dark:group-hover:bg-slate-600"
                     }`}
                   >
                     {letter}
@@ -1238,7 +1238,7 @@ function QuestionPanel({
 
       {/* Review mode explanation */}
       {isReview && q.explanation && (
-        <div className="mt-4 p-4 bg-slate-900/60 rounded-xl border border-slate-700/50">
+        <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700/50">
           <h4 className="text-sm font-semibold text-blue-400 mb-2">
             Explanation
           </h4>

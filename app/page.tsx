@@ -535,13 +535,13 @@ export default function DashboardPage() {
                 placeholder="Search by name, topics, section…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-slate-800/50 border-slate-700 h-9 text-sm"
+                className="pl-9 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 h-9 text-sm"
               />
             </div>
 
             {/* Filter by section */}
             <Select value={sectionFilter} onValueChange={(v) => setSectionFilter(v as SectionFilter)}>
-              <SelectTrigger className="w-full sm:w-40 h-9 bg-slate-800/50 border-slate-700 text-sm">
+              <SelectTrigger className="w-full sm:w-40 h-9 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-sm">
                 <FaIcon icon={faSliders} className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
                 <SelectValue placeholder="Section" />
               </SelectTrigger>
@@ -558,7 +558,7 @@ export default function DashboardPage() {
               value={timeFilter}
               onValueChange={(v) => setTimeFilter(v as TimeFilter)}
             >
-              <SelectTrigger className="w-full sm:w-40 h-9 bg-slate-800/50 border-slate-700 text-sm">
+              <SelectTrigger className="w-full sm:w-40 h-9 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-sm">
                 <FaIcon icon={faClock} className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
                 <SelectValue placeholder="Time" />
               </SelectTrigger>
@@ -573,7 +573,7 @@ export default function DashboardPage() {
             </Select>
 
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-              <SelectTrigger className="w-full sm:w-44 h-9 bg-slate-800/50 border-slate-700 text-sm">
+              <SelectTrigger className="w-full sm:w-44 h-9 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-sm">
                 <FaIcon icon={faArrowsUpDown} className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
