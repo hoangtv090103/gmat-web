@@ -206,7 +206,7 @@ function MissingLinkGate({
           onChange(e.target.value)
         }
         placeholder="What assumption connects the evidence to the conclusion?"
-        className="bg-slate-900 border-slate-700 text-sm resize-none mb-2"
+        className="bg-slate-900 border-slate-700 text-slate-100 placeholder:text-slate-500 text-sm resize-none mb-2"
         rows={2}
         maxLength={300}
       />
@@ -316,7 +316,7 @@ function PassageMapInput({
                   onChange({ ...value, [key]: e.target.value })
                 }
                 placeholder="Main point of this paragraph (1 sentence max)."
-                className={`bg-slate-900 border-slate-700 text-xs resize-none ${!filled && Object.keys(value).length > 0 ? "border-amber-500/50" : ""}`}
+                className={`bg-slate-900 border-slate-700 text-slate-100 placeholder:text-slate-500 text-xs resize-none ${!filled && Object.keys(value).length > 0 ? "border-amber-500/50" : ""}`}
                 rows={1}
                 maxLength={150}
                 readOnly={mode === "review"}
@@ -334,7 +334,7 @@ function PassageMapInput({
               onChange({ ...value, mainIdea: e.target.value })
             }
             placeholder="Overall argument of the passage."
-            className="bg-slate-900 border-slate-700 text-xs resize-none"
+            className="bg-slate-900 border-slate-700 text-slate-100 placeholder:text-slate-500 text-xs resize-none"
             rows={1}
             maxLength={200}
             readOnly={mode === "review"}

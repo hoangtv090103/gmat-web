@@ -650,7 +650,7 @@ export default function ResultsPage({
                                       )
                                     }
                                     placeholder="What will I do differently next time?"
-                                    className="h-8 bg-slate-900 border-slate-700 text-sm"
+                                    className="h-8 bg-slate-900 border-slate-700 text-slate-100 placeholder:text-slate-500 text-sm"
                                   />
                                 </div>
                               </div>

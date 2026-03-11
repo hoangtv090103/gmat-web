@@ -36,6 +36,7 @@ Individual GMAT questions belonging to a set.
 | `question_type`       | `text`        | NOT NULL                                  | See question types below                        |
 | `difficulty`          | `int`         |                                           | GMAT scale, e.g. 500–800                        |
 | `topic`               | `text`        |                                           | Sub-topic, e.g. `'Number Properties'`           |
+| `topic_note`          | `text`        |                                           | Specific note or detail about the topic         |
 | `stem`                | `text`        | NOT NULL                                  | Main question text                              |
 | `statement1`          | `text`        |                                           | Data Sufficiency only                           |
 | `statement2`          | `text`        |                                           | Data Sufficiency only                           |
@@ -283,6 +284,7 @@ create table if not exists questions (
   question_type   text not null,
   difficulty      int,
   topic           text,
+  topic_note      text,
   stem            text not null,
   statement1      text,
   statement2      text,
