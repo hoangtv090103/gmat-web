@@ -953,6 +953,15 @@ export default function ExamPage({
                 Next <FaIcon icon={faArrowRight} className="h-3.5 w-3.5" />
               </span>
             </Button>
+          ) : mode === "review" ? (
+            <Button
+              onClick={() => router.push("/")}
+              className="bg-slate-600 hover:bg-slate-700"
+            >
+              <span className="inline-flex items-center gap-2">
+                <FaIcon icon={faArrowLeft} className="h-3.5 w-3.5" /> Back to Dashboard
+              </span>
+            </Button>
           ) : (
             <Button
               onClick={handleSubmit}
@@ -1055,6 +1064,7 @@ function QuestionPanel({
             className="border-purple-500/30 text-purple-400 text-xs"
           >
             {q.topic || q.question_type}
+            {q.topic_note && <span className="text-purple-300/60 font-normal ml-1">({q.topic_note})</span>}
           </Badge>
           {!isSimulation && qs?.flagged && (
             <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">

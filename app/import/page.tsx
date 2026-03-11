@@ -99,6 +99,7 @@ export default function ImportPage() {
           difficulty: q.difficulty,
           question_type: q.question_type as QuestionType,
           topic: q.topic,
+          topic_note: q.topic_note,
           stem: q.stem,
           statement1: q.statement1,
           statement2: q.statement2,

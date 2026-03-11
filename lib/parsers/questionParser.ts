@@ -168,7 +168,6 @@ function parseQuestionBlock(block: string): Omit<ParsedQuestion, 'correct_answer
   const rawType = headerMatch[3].trim();
 
   // Determine question type
-  const topic = rawType;
   let question_type = 'Problem Solving';
   if (/data\s+sufficiency/i.test(rawType)) {
     question_type = 'Data Sufficiency';
@@ -185,6 +184,14 @@ function parseQuestionBlock(block: string): Omit<ParsedQuestion, 'correct_answer
   } else if (/two.?part/i.test(rawType)) {
     question_type = 'Two-Part Analysis';
   }
+
+  // Normalize topic: strip question-type prefix, then extract parenthetical as topic_note
+  // e.g. "Critical Reasoning — Inferred Idea (critics' belief)" → topic="Inferred Idea", topic_note="critics' belief"
+  const qTypePrefixRe = /^(?:Data\s+Sufficiency|Problem\s+Solving|Reading\s+Comprehension|Critical\s+Reasoning|Multi.?Source\s+Reasoning|Table\s+Analysis|Graphics?\s+Interpretation|Two.?Part\s+Analysis)\s*[—\-]+\s*/i;
+  const subtopic = rawType.replace(qTypePrefixRe, '').trim();
+  const noteMatch = subtopic.match(/\s*\(([^)]+)\)\s*$/);
+  const topic_note = noteMatch ? noteMatch[1].trim() : undefined;
+  const topic = (subtopic.replace(/\s*\([^)]+\)\s*$/, '').trim()) || rawType;
 
   // Remove the header line to get the body
   const headerEnd = block.indexOf('\n', block.indexOf(headerMatch[0]));
@@ -226,6 +233,7 @@ function parseQuestionBlock(block: string): Omit<ParsedQuestion, 'correct_answer
     difficulty,
     question_type,
     topic,
+    topic_note,
     stem,
     statement1,
     statement2,

@@ -35,6 +35,7 @@ export interface Question {
   difficulty: number;
   question_type: QuestionType;
   topic?: string;
+  topic_note?: string;
   stem: string;
   statement1?: string;
   statement2?: string;
@@ -220,6 +221,7 @@ export interface ParsedQuestion {
   difficulty: number;
   question_type: string;
   topic?: string;
+  topic_note?: string;
   stem: string;
   statement1?: string;
   statement2?: string;

@@ -376,7 +376,8 @@ export default function ResultsPage({
                     >
                       <TableCell className="font-medium">{i + 1}</TableCell>
                       <TableCell className="text-sm">
-                        {q.topic || q.question_type}{" "}
+                        {q.topic || q.question_type}
+                        {q.topic_note && <span className="text-xs text-slate-500 ml-1">({q.topic_note})</span>}{" "}
                         {r.triage_triggered && (
                           <FaIcon
                             icon={faClock}
@@ -738,6 +739,7 @@ export default function ResultsPage({
                       <TableCell>{q.question_number}</TableCell>
                       <TableCell className="text-sm">
                         {q.topic || q.question_type}
+                        {q.topic_note && <span className="text-xs text-slate-500 ml-1">({q.topic_note})</span>}
                       </TableCell>
                       <TableCell>
                         {r.error_category ? (
