@@ -252,11 +252,11 @@ export default function AnalyticsPage() {
           const sResp = responsesBySession.get(s.id) || [];
           const avg = sResp.length
             ? Math.round(
-                sResp.reduce(
-                  (sum, r) => sum + (r.time_spent_seconds || 0),
-                  0,
-                ) / sResp.length,
-              )
+              sResp.reduce(
+                (sum, r) => sum + (r.time_spent_seconds || 0),
+                0,
+              ) / sResp.length,
+            )
             : 0;
           return {
             session: i + 1,
@@ -323,12 +323,12 @@ export default function AnalyticsPage() {
 
   // ─── Time vs Accuracy Buckets ────────────────────────────
   const TIME_BUCKETS = [
-    { label: "<30s",   min: 0,   max: 30  },
-    { label: "30-60s", min: 30,  max: 60  },
-    { label: "60-90s", min: 60,  max: 90  },
-    { label: "1-2m",   min: 90,  max: 120 },
-    { label: "2-3m",   min: 120, max: 180 },
-    { label: ">3m",    min: 180, max: Infinity },
+    { label: "<30s", min: 0, max: 30 },
+    { label: "30-60s", min: 30, max: 60 },
+    { label: "60-90s", min: 60, max: 90 },
+    { label: "1-2m", min: 90, max: 120 },
+    { label: "2-3m", min: 120, max: 180 },
+    { label: ">3m", min: 180, max: Infinity },
   ];
 
   const timeBucketData = useMemo(() => {
@@ -525,11 +525,10 @@ export default function AnalyticsPage() {
               key={opt.id}
               variant={sectionFilter === opt.id ? "default" : "outline"}
               size="sm"
-              className={`h-7 px-3 text-xs ${
-                sectionFilter === opt.id
+              className={`h-7 px-3 text-xs ${sectionFilter === opt.id
                   ? "bg-slate-800 text-blue-400 border-blue-500/60 hover:bg-slate-700"
                   : "border-slate-700 text-slate-300 hover:bg-slate-800"
-              }`}
+                }`}
               onClick={() => setSectionFilter(opt.id)}
             >
               {opt.label}
@@ -541,9 +540,9 @@ export default function AnalyticsPage() {
       {completed.length === 0 ? (
         <Card className="glass-card border-dashed border-2 border-blue-500/20">
           <CardContent className="py-16 text-center">
-                <div className="mb-4 flex justify-center">
-                  <FaIcon icon={faChartLine} className="h-10 w-10 text-slate-400" />
-                </div>
+            <div className="mb-4 flex justify-center">
+              <FaIcon icon={faChartLine} className="h-10 w-10 text-slate-400" />
+            </div>
             <h3 className="text-xl font-semibold mb-2">No Data Yet</h3>
             <p className="text-muted-foreground mb-6">
               Complete some exam sessions to see analytics
@@ -632,11 +631,10 @@ export default function AnalyticsPage() {
                         <TableRow key={row.examId} className="border-slate-800">
                           <TableCell className="text-muted-foreground text-xs">{row.date}</TableCell>
                           <TableCell>
-                            <span className={`font-bold text-sm ${
-                              row.total >= 680 ? 'text-emerald-400' :
-                              row.total >= 650 ? 'text-amber-400' :
-                              'text-red-400'
-                            }`}>
+                            <span className={`font-bold text-sm ${row.total >= 680 ? 'text-emerald-400' :
+                                row.total >= 650 ? 'text-amber-400' :
+                                  'text-red-400'
+                              }`}>
                               {row.total}
                             </span>
                           </TableCell>
@@ -916,16 +914,17 @@ export default function AnalyticsPage() {
                       fill="#EF4444"
                       name="wrong"
                       radius={[3, 3, 0, 0]}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       label={{
-                        position: "top" as const,
-                        content: ({ x, y, width, value, index }: { x?: number; y?: number; width?: number; value?: number; index?: number }) => {
+                        position: "top" as const, content: (props: any) => {
+                          const { x, y, width, index } = props;
                           const d = timeBucketData[index ?? 0];
                           if (!d || d.total === 0) return null;
                           const pct = Math.round((d.correct / d.total) * 100);
                           return (
                             <text
-                              x={(x ?? 0) + (width ?? 0) / 2}
-                              y={(y ?? 0) - 4}
+                              x={Number(x ?? 0) + Number(width ?? 0) / 2}
+                              y={Number(y ?? 0) - 4}
                               textAnchor="middle"
                               fontSize={10}
                               fill={tickColor}
@@ -933,7 +932,7 @@ export default function AnalyticsPage() {
                               {pct}%
                             </text>
                           );
-                        },
+                        }
                       }}
                     />
                   </BarChart>
