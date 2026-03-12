@@ -57,8 +57,6 @@ import {
   CartesianGrid,
   Bar,
   BarChart,
-  ScatterChart,
-  Scatter,
   Cell,
   ReferenceLine,
   Legend,
@@ -323,15 +321,38 @@ export default function AnalyticsPage() {
     };
   }, [filteredResponses]);
 
-  // ─── Time vs Accuracy Scatter ────────────────────────────
-  const scatterData = useMemo(
-    () =>
-      filteredResponses.map((r) => ({
-        time: r.time_spent_seconds,
-        correct: r.is_correct ? 1 : 0,
-      })),
-    [filteredResponses],
-  );
+  // ─── Time vs Accuracy Buckets ────────────────────────────
+  const TIME_BUCKETS = [
+    { label: "<30s",   min: 0,   max: 30  },
+    { label: "30-60s", min: 30,  max: 60  },
+    { label: "60-90s", min: 60,  max: 90  },
+    { label: "1-2m",   min: 90,  max: 120 },
+    { label: "2-3m",   min: 120, max: 180 },
+    { label: ">3m",    min: 180, max: Infinity },
+  ];
+
+  const timeBucketData = useMemo(() => {
+    return TIME_BUCKETS.map(({ label, min, max }) => {
+      const inBucket = filteredResponses.filter(
+        (r) => r.time_spent_seconds >= min && r.time_spent_seconds < max
+      );
+      const correct = inBucket.filter((r) => r.is_correct).length;
+      const wrong = inBucket.length - correct;
+      return { label, correct, wrong, total: inBucket.length };
+    }).filter((b) => b.total > 0);
+  }, [filteredResponses]);
+
+  const avgTimeStats = useMemo(() => {
+    const correctResps = filteredResponses.filter((r) => r.is_correct && r.time_spent_seconds > 0);
+    const wrongResps = filteredResponses.filter((r) => !r.is_correct && r.time_spent_seconds > 0);
+    const avgCorrect = correctResps.length
+      ? Math.round(correctResps.reduce((s, r) => s + r.time_spent_seconds, 0) / correctResps.length)
+      : null;
+    const avgWrong = wrongResps.length
+      ? Math.round(wrongResps.reduce((s, r) => s + r.time_spent_seconds, 0) / wrongResps.length)
+      : null;
+    return { avgCorrect, avgWrong };
+  }, [filteredResponses]);
 
   // ─── Simulation Score Data ────────────────────────────────
   const completedSimExams = useMemo(
@@ -842,42 +863,84 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
-          {/* ─── Time vs Accuracy Scatter ──────────────────── */}
-          {scatterData.length > 5 && (
+          {/* ─── Time vs Accuracy Buckets ──────────────────── */}
+          {filteredResponses.length > 5 && (
             <Card className="glass-card mb-8 animate-slide-up">
               <CardHeader>
-                <CardTitle className="text-sm">
-                  Time Spent vs Correctness
-                </CardTitle>
+                <CardTitle className="text-sm">Time Spent vs Accuracy</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <ScatterChart>
+                {/* Summary stats */}
+                <div className="flex gap-3 mb-4 flex-wrap">
+                  {avgTimeStats.avgCorrect !== null && (
+                    <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      Avg time correct: {avgTimeStats.avgCorrect}s
+                    </span>
+                  )}
+                  {avgTimeStats.avgWrong !== null && (
+                    <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
+                      <span className="w-2 h-2 rounded-full bg-red-500" />
+                      Avg time wrong: {avgTimeStats.avgWrong}s
+                    </span>
+                  )}
+                  {avgTimeStats.avgCorrect !== null && avgTimeStats.avgWrong !== null && (
+                    <span className="text-xs text-muted-foreground self-center">
+                      {avgTimeStats.avgCorrect < avgTimeStats.avgWrong
+                        ? "You answer correctly faster than incorrectly"
+                        : "You spend more time on questions you get right"}
+                    </span>
+                  )}
+                </div>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={timeBucketData} barSize={32}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                    <XAxis
-                      dataKey="time"
-                      name="Time (s)"
-                      tick={{ fill: tickColor, fontSize: 11 }}
+                    <XAxis dataKey="label" tick={{ fill: tickColor, fontSize: 11 }} />
+                    <YAxis tick={{ fill: tickColor, fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip
+                      {...tooltipStyle}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      formatter={(value: any, name: any) => [
+                        value ?? 0,
+                        name === "correct" ? "Correct" : "Wrong",
+                      ]}
                     />
-                    <YAxis
-                      dataKey="correct"
-                      name="Correct"
-                      domain={[0, 1]}
-                      tick={{ fill: tickColor, fontSize: 11 }}
-                      ticks={[0, 1]}
-                      tickFormatter={(v) => (v === 1 ? "Correct" : "Wrong")}
+                    <Legend
+                      wrapperStyle={{ fontSize: 11, color: tickColor }}
+                      formatter={(v) => (v === "correct" ? "Correct" : "Wrong")}
                     />
-                    <Tooltip {...tooltipStyle} />
-                    <Scatter data={scatterData}>
-                      {scatterData.map((entry, i) => (
-                        <Cell
-                          key={i}
-                          fill={entry.correct ? "#10B981" : "#EF4444"}
-                        />
-                      ))}
-                    </Scatter>
-                  </ScatterChart>
+                    <Bar dataKey="correct" stackId="a" fill="#10B981" name="correct" radius={[0, 0, 0, 0]} />
+                    <Bar
+                      dataKey="wrong"
+                      stackId="a"
+                      fill="#EF4444"
+                      name="wrong"
+                      radius={[3, 3, 0, 0]}
+                      label={{
+                        position: "top" as const,
+                        content: ({ x, y, width, value, index }: { x?: number; y?: number; width?: number; value?: number; index?: number }) => {
+                          const d = timeBucketData[index ?? 0];
+                          if (!d || d.total === 0) return null;
+                          const pct = Math.round((d.correct / d.total) * 100);
+                          return (
+                            <text
+                              x={(x ?? 0) + (width ?? 0) / 2}
+                              y={(y ?? 0) - 4}
+                              textAnchor="middle"
+                              fontSize={10}
+                              fill={tickColor}
+                            >
+                              {pct}%
+                            </text>
+                          );
+                        },
+                      }}
+                    />
+                  </BarChart>
                 </ResponsiveContainer>
+                <p className="text-xs text-muted-foreground mt-2 text-right">
+                  % shown above each bar = accuracy rate for that time range
+                </p>
               </CardContent>
             </Card>
           )}
