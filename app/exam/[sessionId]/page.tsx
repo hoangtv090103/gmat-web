@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback, use, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useExamStore } from "@/store/examStore";
+import { useExamStore, requiresMissingLink } from "@/store/examStore";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -430,6 +430,7 @@ export default function ExamPage({
   const currentQ = questions[currentIndex];
   const qs = questionStates[currentIndex];
   const isCR = currentQ?.question_type === "Critical Reasoning";
+  const needsMissingLink = requiresMissingLink(currentQ?.question_type ?? '', currentQ?.topic);
   const isRC =
     currentQ?.question_type === "Reading Comprehension" ||
     (!!currentQ?.passage_id &&
@@ -875,7 +876,7 @@ export default function ExamPage({
                   mode={mode}
                   showTimerRing={showTimerRing}
                   triageSecs={triageSecs}
-                  isCR={isCR}
+                  isCR={needsMissingLink}
                   choicesLocked={false}
                   mlDraft={mlDraft}
                   setMlDraft={setMlDraft}
@@ -904,7 +905,7 @@ export default function ExamPage({
             mode={mode}
             showTimerRing={showTimerRing}
             triageSecs={triageSecs}
-            isCR={isCR}
+            isCR={needsMissingLink}
             choicesLocked={choicesLocked}
             mlDraft={mlDraft}
             setMlDraft={setMlDraft}

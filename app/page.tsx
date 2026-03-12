@@ -69,7 +69,7 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sectionFilter, setSectionFilter] = useState<SectionFilter>("all");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("today");
 
   // CRUD state
   const [editingSet, setEditingSet] = useState<QuestionSet | null>(null);

@@ -105,15 +105,25 @@ interface ExamState {
   completePassageMap: () => void;
 }
 
+const MISSING_LINK_TOPICS = ['assumption', 'strengthen', 'weaken'];
+
+export function requiresMissingLink(questionType: string, topic?: string | null): boolean {
+  if (questionType !== 'Critical Reasoning') return false;
+  if (!topic) return false;
+  const t = topic.toLowerCase();
+  return MISSING_LINK_TOPICS.some(kw => t.includes(kw));
+}
+
 function makeInitialQState(
   questionType: string,
   mode: ExamMode,
   isFirst: boolean,
-  now: number
+  now: number,
+  topic?: string | null
 ): QuestionState {
-  const isCR = questionType === 'Critical Reasoning';
+  const needsML = requiresMissingLink(questionType, topic);
   const isRC = questionType === 'Reading Comprehension';
-  const choicesUnlocked = mode === 'review' || (!isCR && !isRC);
+  const choicesUnlocked = mode === 'review' || (!needsML && !isRC);
   const passageMapComplete = mode === 'review' || !isRC;
 
   return {
@@ -161,7 +171,7 @@ export const useExamStore = create<ExamState>()(
         const now = performance.now();
         const initialStates: Record<number, QuestionState> = {};
         questions.forEach((q, i) => {
-          initialStates[i] = makeInitialQState(q.question_type, mode, i === 0, now);
+          initialStates[i] = makeInitialQState(q.question_type, mode, i === 0, now, q.topic);
         });
 
         set({
@@ -315,7 +325,7 @@ export const useExamStore = create<ExamState>()(
               // Reset triage for this visit if not already triggered
               questionTimerStartMs: choicesUnlocked && passageMapComplete ? now : existingQs.questionTimerStartMs,
             }
-          : makeInitialQState(targetQ?.question_type || '', state.mode, true, now);
+          : makeInitialQState(targetQ?.question_type || '', state.mode, true, now, targetQ?.topic);
 
         // Re-read questionStates after recordQuestionTime() has updated them
         const freshQuestionStates = get().questionStates;
