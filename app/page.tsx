@@ -25,7 +25,6 @@ import {
   faEye,
   faMagnifyingGlass,
   faPen,
-  faSliders,
   faUpload,
   faCircleCheck,
   faFile,
@@ -49,16 +48,57 @@ import { QuestionManagerSheet } from "@/components/question-sets/QuestionManager
 import { DeleteConfirmDialog } from "@/components/question-sets/DeleteConfirmDialog";
 import { toast } from "sonner";
 
-type SectionFilter = "all" | "Quantitative" | "Verbal" | "Data Insights";
 type SortOption = "newest" | "oldest" | "name-az" | "name-za" | "questions-desc" | "questions-asc";
 type TimeFilter = "all" | "today" | "yesterday" | "3d" | "7d" | "21d";
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+const SECTION_ORDER = ["Quantitative", "Verbal", "Data Insights"];
+const SECTION_COLORS: Record<string, { dot: string; text: string; border: string }> = {
+  Quantitative: { dot: "bg-blue-500", text: "text-blue-400", border: "border-blue-500/20" },
+  Verbal: { dot: "bg-green-500", text: "text-green-400", border: "border-green-500/20" },
+  "Data Insights": { dot: "bg-amber-500", text: "text-amber-400", border: "border-amber-500/20" },
+  Other: { dot: "bg-slate-500", text: "text-slate-400", border: "border-slate-600/30" },
+};
+
+function getDateKey(qs: QuestionSet): string {
+  const raw = qs.study_date ?? qs.created_at;
+  if (!raw) return "unscheduled";
+  if (raw.includes("T")) {
+    const d = new Date(raw);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  return raw.slice(0, 10);
+}
+
+function formatDateHeading(key: string): string {
+  if (key === "unscheduled") return "Unscheduled";
+  const now = new Date();
+  const parts = key.split("-").map(Number);
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+  if (isSameDay(d, now)) return "Today";
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (isSameDay(d, yesterday)) return "Yesterday";
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+function formatDateSub(key: string): string {
+  if (key === "unscheduled") return "";
+  const parts = key.split("-").map(Number);
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function normalizeSectionKey(section?: string | null): string {
+  if (!section) return "Other";
+  const s = section.trim().toLowerCase();
+  if (s.includes("quant")) return "Quantitative";
+  if (s.includes("verbal")) return "Verbal";
+  if (s.includes("data") || s.includes("insight") || s.includes("di")) return "Data Insights";
+  return "Other";
 }
 
 export default function DashboardPage() {
@@ -67,7 +107,6 @@ export default function DashboardPage() {
   const [responses, setResponses] = useState<QuestionResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sectionFilter, setSectionFilter] = useState<SectionFilter>("all");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("today");
 
@@ -205,7 +244,7 @@ export default function DashboardPage() {
       <Card
         key={qs.id}
         className="glass-card animate-slide-up"
-        style={{ animationDelay: `${i * 80}ms` }}
+        style={{ animationDelay: `${i * 60}ms` }}
       >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
@@ -257,44 +296,27 @@ export default function DashboardPage() {
               </DropdownMenu>
             </div>
           </div>
-          {qs.section && (
-            <p className="text-xs text-muted-foreground">
-              {qs.section}
-            </p>
+          {qs.difficulty_range && (
+            <Badge variant="outline" className="w-fit border-blue-500/30 text-blue-400 text-xs mt-1">
+              {qs.difficulty_range}
+            </Badge>
           )}
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2 mb-4 text-xs text-muted-foreground">
-            {qs.difficulty_range && (
-              <Badge
-                variant="outline"
-                className="border-blue-500/30 text-blue-400"
-              >
-                {qs.difficulty_range}
-              </Badge>
-            )}
+          <div className="flex flex-wrap gap-2 mb-4 text-xs text-muted-foreground items-center">
             <Badge variant="outline" className="border-slate-500/30">
               {qs.total_questions} questions
             </Badge>
-            <span className="opacity-60">
-              {formatDate(qs.study_date ?? qs.created_at)}
-            </span>
           </div>
 
           <div className="flex gap-2">
-            <Link
-              href={`/exam/setup?setId=${qs.id}&mode=timed`}
-              className="flex-1"
-            >
+            <Link href={`/exam/setup?setId=${qs.id}&mode=timed`} className="flex-1">
               <Button className="w-full bg-blue-600 hover:bg-blue-700 text-xs h-8">
                 <FaIcon icon={faClock} className="mr-2 h-3.5 w-3.5" />
                 Timed
               </Button>
             </Link>
-            <Link
-              href={`/exam/setup?setId=${qs.id}&mode=practice`}
-              className="flex-1"
-            >
+            <Link href={`/exam/setup?setId=${qs.id}&mode=practice`} className="flex-1">
               <Button
                 variant="outline"
                 className="w-full border-green-500/30 hover:bg-green-500/10 text-green-400 text-xs h-8"
@@ -303,10 +325,7 @@ export default function DashboardPage() {
                 Practice
               </Button>
             </Link>
-            <Link
-              href={`/exam/setup?setId=${qs.id}&mode=review`}
-              className="flex-1"
-            >
+            <Link href={`/exam/setup?setId=${qs.id}&mode=review`} className="flex-1">
               <Button
                 variant="outline"
                 className="w-full border-purple-500/30 hover:bg-purple-500/10 text-purple-400 text-xs h-8"
@@ -322,11 +341,10 @@ export default function DashboardPage() {
   };
 
   // Filter and sort question sets
-  const filteredAndSortedSets = useMemo(() => {
+  const filteredSets = useMemo(() => {
     let result = [...sets];
 
-    // Filter by study_date — only applies to sets that have study_date set.
-    // Sets without study_date are "unscheduled" and always pass through.
+    // Filter by study_date via timeFilter
     if (timeFilter !== "all") {
       const now = new Date();
       const isSameDay = (d: Date, ref: Date) =>
@@ -334,8 +352,7 @@ export default function DashboardPage() {
         d.getMonth() === ref.getMonth() &&
         d.getDate() === ref.getDate();
       result = result.filter((s) => {
-        if (!s.study_date) return false; // sets without study_date hidden when filter is active
-        // Parse YYYY-MM-DD as local time (not UTC) to avoid timezone shift
+        if (!s.study_date) return false;
         const parts = s.study_date.split("-").map(Number);
         if (parts.length !== 3) return true;
         const d = new Date(parts[0], parts[1] - 1, parts[2]);
@@ -360,7 +377,7 @@ export default function DashboardPage() {
       });
     }
 
-    // Search: name, topics, section
+    // Search
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       result = result.filter(
@@ -374,15 +391,7 @@ export default function DashboardPage() {
       );
     }
 
-    // Filter by section
-    if (sectionFilter !== "all") {
-      result = result.filter(
-        (s) =>
-          s.section?.toLowerCase().includes(sectionFilter.toLowerCase()) ?? false
-      );
-    }
-
-    // Sort
+    // Sort within groups
     result.sort((a, b) => {
       switch (sortBy) {
         case "newest":
@@ -403,15 +412,41 @@ export default function DashboardPage() {
     });
 
     return result;
-  }, [sets, searchQuery, sectionFilter, sortBy, timeFilter]);
+  }, [sets, searchQuery, sortBy, timeFilter]);
+
+  // Group by date → section
+  const groupedByDate = useMemo(() => {
+    const byDate: Record<string, Record<string, QuestionSet[]>> = {};
+    for (const qs of filteredSets) {
+      const dateKey = getDateKey(qs);
+      const secKey = normalizeSectionKey(qs.section);
+      if (!byDate[dateKey]) byDate[dateKey] = {};
+      if (!byDate[dateKey][secKey]) byDate[dateKey][secKey] = [];
+      byDate[dateKey][secKey].push(qs);
+    }
+    // Sort date keys newest first; "unscheduled" always last
+    const dateKeys = Object.keys(byDate).sort((a, b) => {
+      if (a === "unscheduled") return 1;
+      if (b === "unscheduled") return -1;
+      return b.localeCompare(a);
+    });
+    return dateKeys.map((dateKey) => ({
+      dateKey,
+      label: formatDateHeading(dateKey),
+      sub: formatDateSub(dateKey),
+      total: Object.values(byDate[dateKey]).reduce((s, arr) => s + arr.length, 0),
+      sections: [
+        ...SECTION_ORDER.filter((k) => byDate[dateKey][k]),
+        ...Object.keys(byDate[dateKey]).filter((k) => !SECTION_ORDER.includes(k)),
+      ].map((secKey) => ({ secKey, sets: byDate[dateKey][secKey] })),
+    }));
+  }, [filteredSets]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center animate-pulse">
-          <div className="text-2xl font-bold text-blue-400 mb-2">
-            GMAT Focus Edition
-          </div>
+          <div className="text-2xl font-bold text-blue-400 mb-2">GMAT Focus Edition</div>
           <div className="text-muted-foreground">Loading...</div>
         </div>
       </div>
@@ -427,9 +462,7 @@ export default function DashboardPage() {
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
               GMAT Focus Edition
             </h1>
-            <p className="text-muted-foreground mt-1">
-              Exam Simulator & Performance Tracker
-            </p>
+            <p className="text-muted-foreground mt-1">Exam Simulator & Performance Tracker</p>
           </div>
           <div className="flex gap-3 flex-wrap items-center">
             <ThemeToggle />
@@ -465,31 +498,11 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 animate-slide-up">
         {(
           [
-          {
-            label: "Question Sets",
-            value: sets.length,
-            icon: faBookOpen,
-            color: "blue",
-          },
-          {
-            label: "Total Sessions",
-            value: totalSessions,
-            icon: faBullseye,
-            color: "green",
-          },
-          {
-            label: "Avg Accuracy",
-            value: `${avgAccuracy}%`,
-            icon: faChartLine,
-            color: "purple",
-          },
-          {
-            label: "Avg Time/Q",
-            value: avgTimePerQ ? `${avgTimePerQ}s` : "—",
-            icon: faClock,
-            color: "amber",
-          },
-        ] as { label: string; value: string | number; icon: IconDefinition; color: string }[]
+            { label: "Question Sets", value: sets.length, icon: faBookOpen, color: "blue" },
+            { label: "Total Sessions", value: totalSessions, icon: faBullseye, color: "green" },
+            { label: "Avg Accuracy", value: `${avgAccuracy}%`, icon: faChartLine, color: "purple" },
+            { label: "Avg Time/Q", value: avgTimePerQ ? `${avgTimePerQ}s` : "—", icon: faClock, color: "amber" },
+          ] as { label: string; value: string | number; icon: IconDefinition; color: string }[]
         ).map((stat) => (
           <Card key={stat.label} className="glass-card">
             <CardContent className="pt-6">
@@ -532,32 +545,15 @@ export default function DashboardPage() {
                 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
               />
               <Input
-                placeholder="Search by name, topics, section…"
+                placeholder="Search by name, topics…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 h-9 text-sm"
               />
             </div>
 
-            {/* Filter by section */}
-            <Select value={sectionFilter} onValueChange={(v) => setSectionFilter(v as SectionFilter)}>
-              <SelectTrigger className="w-full sm:w-40 h-9 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-sm">
-                <FaIcon icon={faSliders} className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
-                <SelectValue placeholder="Section" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All sections</SelectItem>
-                <SelectItem value="Quantitative">Quantitative</SelectItem>
-                <SelectItem value="Verbal">Verbal</SelectItem>
-                <SelectItem value="Data Insights">Data Insights</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Time range & sort */}
-            <Select
-              value={timeFilter}
-              onValueChange={(v) => setTimeFilter(v as TimeFilter)}
-            >
+            {/* Time range */}
+            <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
               <SelectTrigger className="w-full sm:w-40 h-9 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-sm">
                 <FaIcon icon={faClock} className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
                 <SelectValue placeholder="Time" />
@@ -572,6 +568,7 @@ export default function DashboardPage() {
               </SelectContent>
             </Select>
 
+            {/* Sort */}
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
               <SelectTrigger className="w-full sm:w-44 h-9 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-sm">
                 <FaIcon icon={faArrowsUpDown} className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
@@ -594,6 +591,7 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {/* Content */}
       {sets.length === 0 ? (
         <Card className="glass-card border-dashed border-2 border-blue-500/20">
           <CardContent className="py-16 text-center">
@@ -602,8 +600,7 @@ export default function DashboardPage() {
             </div>
             <h3 className="text-xl font-semibold mb-2">No Question Sets Yet</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Import your GMAT question files (.docx, .pdf, .txt) to get started
-              with practice sessions.
+              Import your GMAT question files (.docx, .pdf, .txt) to get started with practice sessions.
             </p>
             <Link href="/import">
               <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20">
@@ -612,80 +609,85 @@ export default function DashboardPage() {
             </Link>
           </CardContent>
         </Card>
-      ) : filteredAndSortedSets.length === 0 ? (
+      ) : filteredSets.length === 0 ? (
         <Card className="glass-card border-dashed border-2 border-slate-600/50">
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground mb-2">No question sets match your search or filter.</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSearchQuery("");
-                setSectionFilter("all");
-              }}
-            >
-              Clear filters
-            </Button>
+            {timeFilter === "today" ? (
+              <>
+                <p className="text-muted-foreground mb-1">No question sets scheduled for today.</p>
+                <p className="text-xs text-muted-foreground/60 mb-4">
+                  Sets need a study date of today to appear here.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setTimeFilter("all"); setSearchQuery(""); }}
+                >
+                  Show all sets
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground mb-2">No question sets match your filters.</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setSearchQuery(""); setTimeFilter("all"); }}
+                >
+                  Clear filters
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {/* Group by section when filtered, or show flat list */}
-          {sectionFilter !== "all" ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>Showing</span>
-                <Badge variant="outline" className="border-slate-600">
-                  {filteredAndSortedSets.length} set{filteredAndSortedSets.length !== 1 ? "s" : ""}
+        <div className="space-y-8">
+          {groupedByDate.map(({ dateKey, label, sub, total, sections }) => (
+            <div key={dateKey}>
+              {/* Date header */}
+              <div className="flex items-center gap-3 mb-5">
+                <h3 className="text-base font-semibold whitespace-nowrap">{label}</h3>
+                {sub && (
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{sub}</span>
+                )}
+                <div className="flex-1 h-px bg-slate-700/60" />
+                <Badge variant="outline" className="text-xs border-slate-600 shrink-0">
+                  {total} {total === 1 ? "set" : "sets"}
                 </Badge>
-                <span>in {sectionFilter}</span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredAndSortedSets.map((qs, i) => renderSetCard(qs, i))}
+
+              {/* Section sub-groups */}
+              <div className="space-y-5 pl-0">
+                {sections.map(({ secKey, sets: secSets }, si) => {
+                  const colors = SECTION_COLORS[secKey] ?? SECTION_COLORS["Other"];
+                  return (
+                    <div key={secKey}>
+                      {/* Section sub-header */}
+                      <div className={`flex items-center gap-2 mb-3 pb-2 border-b ${colors.border}`}>
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${colors.dot}`} />
+                        <span className={`text-xs font-semibold uppercase tracking-wide ${colors.text}`}>
+                          {secKey}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {secSets.length} {secSets.length === 1 ? "set" : "sets"}
+                        </span>
+                      </div>
+                      {/* Cards grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {secSets.map((qs, i) => renderSetCard(qs, si * 10 + i))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          ) : (
-            <>
-              {(() => {
-                const bySection = filteredAndSortedSets.reduce(
-                  (acc, s) => {
-                    const key = s.section?.trim() || "Other";
-                    if (!acc[key]) acc[key] = [];
-                    acc[key].push(s);
-                    return acc;
-                  },
-                  {} as Record<string, QuestionSet[]>
-                );
-                const sectionOrder = ["Quantitative", "Verbal", "Data Insights", "Other"];
-                const orderedSections = [
-                  ...sectionOrder.filter((k) => bySection[k]?.length),
-                  ...Object.keys(bySection).filter((k) => !sectionOrder.includes(k)),
-                ];
-                return orderedSections.map((section) => (
-                  <div key={section}>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-slate-500" />
-                      {section}
-                      <Badge variant="outline" className="text-xs font-normal border-slate-600">
-                        {bySection[section].length}
-                      </Badge>
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {bySection[section].map((qs, i) => renderSetCard(qs, i))}
-                    </div>
-                  </div>
-                ));
-              })()}
-            </>
-          )}
-        </div>
-      )}
+          ))}
 
-      {sets.length > 0 && filteredAndSortedSets.length > 0 && (
-        <div className="mt-4 text-xs text-muted-foreground">
-          {filteredAndSortedSets.length === sets.length
-            ? `Showing all ${sets.length} question sets`
-            : `Showing ${filteredAndSortedSets.length} of ${sets.length} question sets`}
+          <div className="text-xs text-muted-foreground pt-2">
+            {filteredSets.length === sets.length
+              ? `Showing all ${sets.length} question sets`
+              : `Showing ${filteredSets.length} of ${sets.length} question sets`}
+          </div>
         </div>
       )}
 
