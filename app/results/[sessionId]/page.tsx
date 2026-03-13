@@ -431,8 +431,8 @@ export default function ResultsPage({
                     </TableRow>
                     {isExpanded && (
                       <TableRow className="border-slate-800 bg-slate-900/30">
-                        <TableCell colSpan={5} className="py-4">
-                          <div className="space-y-4 max-w-4xl">
+                        <TableCell colSpan={5} className="py-4 whitespace-normal">
+                          <div className="space-y-4 w-full max-w-4xl overflow-hidden">
                             {/* Question stem */}
                             <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
                               {q.question_type === "Data Sufficiency" && (q.statement1 || q.statement2) ? (
@@ -505,7 +505,7 @@ export default function ResultsPage({
                                 </div>
                               );
                             })() : (
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 w-full overflow-hidden">
                               {(["A", "B", "C", "D", "E"] as const)
                                 .map((letter) => ({ letter, text: q[`choice_${letter.toLowerCase()}` as `choice_a`] }))
                                 .filter((c) => c.text)
@@ -516,7 +516,7 @@ export default function ResultsPage({
                                   return (
                                     <div
                                       key={letter}
-                                      className={`flex items-start gap-3 px-3 py-2 rounded-lg text-sm border ${
+                                      className={`grid grid-cols-[1.5rem_1fr_1.25rem] items-start gap-x-3 px-3 py-2 rounded-lg text-sm border ${
                                         isCorrect
                                           ? "border-green-500/60 bg-green-50 dark:bg-green-500/15"
                                           : isWrongSelected
@@ -524,20 +524,14 @@ export default function ResultsPage({
                                           : "border-slate-300 dark:border-slate-600/60 bg-slate-100 dark:bg-slate-800/50"
                                       }`}
                                     >
-                                      <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
+                                      <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold mt-0.5 ${
                                         isCorrect ? "bg-green-600 text-white" : isWrongSelected ? "bg-red-600 text-white" : "bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
                                       }`}>{letter}</span>
-                                      <span className={`leading-relaxed ${isCorrect ? "text-green-800 dark:text-green-100" : isWrongSelected ? "text-red-800 dark:text-red-100" : "text-slate-800 dark:text-slate-200"}`}>{text}</span>
-                                      {isCorrect && (
-                                        <span className="ml-auto text-green-400 flex-shrink-0">
-                                          <FaIcon icon={faCircleCheck} className="h-4 w-4" />
-                                        </span>
-                                      )}
-                                      {isWrongSelected && (
-                                        <span className="ml-auto text-red-400 flex-shrink-0">
-                                          <FaIcon icon={faCircleXmark} className="h-4 w-4" />
-                                        </span>
-                                      )}
+                                      <span className={`leading-relaxed break-words py-0.5 ${isCorrect ? "text-green-800 dark:text-green-100" : isWrongSelected ? "text-red-800 dark:text-red-100" : "text-slate-800 dark:text-slate-200"}`}>{text}</span>
+                                      <span className="flex items-start justify-center pt-0.5">
+                                        {isCorrect && <FaIcon icon={faCircleCheck} className="h-4 w-4 text-green-400" />}
+                                        {isWrongSelected && <FaIcon icon={faCircleXmark} className="h-4 w-4 text-red-400" />}
+                                      </span>
                                     </div>
                                   );
                                 })}
