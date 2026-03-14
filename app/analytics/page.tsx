@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/table";
 import {
   getAllSessions,
-  getAllResponses,
+  getResponsesLite,
   getQuestionSets,
   getQuestionsBySetId,
   getAllSimulationExams,
@@ -124,7 +124,7 @@ export default function AnalyticsPage() {
       try {
         const [sess, resp, qSets, simExamsList] = await Promise.all([
           getAllSessions(),
-          getAllResponses(),
+          getResponsesLite(),
           getQuestionSets(),
           getAllSimulationExams().catch(() => [] as SimulationExam[]),
         ]);
@@ -133,25 +133,22 @@ export default function AnalyticsPage() {
         setSets(qSets);
         setSimExams(simExamsList);
 
-        // Load all questions for topic analysis
-        const allQs: Question[] = [];
-        for (const s of qSets) {
-          const qs = await getQuestionsBySetId(s.id);
-          allQs.push(...qs);
-        }
-        setAllQuestions(allQs);
-
-        // Load sections for completed simulation exams
         const completedSims = simExamsList.filter((e) => e.status === "completed");
+
+        // Load questions (parallel) and sim sections (parallel) concurrently
+        const [questionArrays, sectionsResults] = await Promise.all([
+          Promise.all(qSets.map((s) => getQuestionsBySetId(s.id))),
+          Promise.all(
+            completedSims.map((exam) =>
+              getSimulationSections(exam.id).catch(() => [] as SimulationSection[])
+            )
+          ),
+        ]);
+
+        setAllQuestions(questionArrays.flat());
+
         const sectionsMap: Record<string, SimulationSection[]> = {};
-        await Promise.all(
-          completedSims.map(async (exam) => {
-            try {
-              const secs = await getSimulationSections(exam.id);
-              sectionsMap[exam.id] = secs;
-            } catch { /* best effort */ }
-          })
-        );
+        completedSims.forEach((exam, i) => { sectionsMap[exam.id] = sectionsResults[i]; });
         setSimSectionsMap(sectionsMap);
       } catch (e) {
         console.error(e);

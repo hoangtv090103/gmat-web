@@ -168,6 +168,22 @@ export async function getQuestionSets(): Promise<QuestionSet[]> {
   );
 }
 
+export async function getQuestionSetById(setId: string): Promise<QuestionSet | null> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('question_sets')
+      .select('*')
+      .eq('id', setId)
+      .single();
+    if (error) return null;
+    return data;
+  }
+
+  return getLocal<QuestionSet>(STORAGE_KEYS.QUESTION_SETS).find((s) => s.id === setId) ?? null;
+}
+
 export async function getQuestionsBySetId(setId: string): Promise<Question[]> {
   const supabase = getSupabase();
 
@@ -366,6 +382,19 @@ export async function getAllResponses(): Promise<QuestionResponse[]> {
     const { data, error } = await supabase.from('question_responses').select('*');
     if (error) throw new Error(error.message);
     return data || [];
+  }
+  return getLocal<QuestionResponse>(STORAGE_KEYS.RESPONSES);
+}
+
+// Lightweight variant for analytics — excludes passage_map (large JSONB not needed there)
+export async function getResponsesLite(): Promise<QuestionResponse[]> {
+  const supabase = getSupabase();
+  if (supabase && isSupabaseConfigured()) {
+    const { data, error } = await supabase
+      .from('question_responses')
+      .select('id, session_id, question_id, question_order, selected_answer, is_correct, time_spent_seconds, flagged_for_review, answer_changes, first_answer, confidence_rating, error_category, note, triage_triggered, missing_link, choices_unlocked_at_ms, created_at');
+    if (error) throw new Error(error.message);
+    return (data || []) as QuestionResponse[];
   }
   return getLocal<QuestionResponse>(STORAGE_KEYS.RESPONSES);
 }

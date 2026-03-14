@@ -18,6 +18,7 @@ import {
   getSession,
   getResponsesBySession,
   getQuestionsBySetId,
+  getQuestionSetById,
   updateResponse,
   recalculateSessionResults,
 } from "@/lib/db";
@@ -84,6 +85,7 @@ export default function ResultsPage({
   const [session, setSession] = useState<ExamSession | null>(null);
   const [responses, setResponses] = useState<QuestionResponse[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [questionSetName, setQuestionSetName] = useState<string>("");
   const [expandedQ, setExpandedQ] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -123,12 +125,14 @@ export default function ResultsPage({
         if (!sess) return;
         setSession(sess);
 
-        const [resp, qs] = await Promise.all([
+        const [resp, qs, matchedSet] = await Promise.all([
           getResponsesBySession(sessionId),
           getQuestionsBySetId(sess.set_id),
+          getQuestionSetById(sess.set_id),
         ]);
         setResponses(resp);
         setQuestions(qs);
+        if (matchedSet) setQuestionSetName(matchedSet.name);
 
         const initialNotes: Record<string, string> = {};
         resp.forEach((r) => {
@@ -283,14 +287,19 @@ export default function ResultsPage({
   return (
     <div className="min-h-screen p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <Button
-          variant="ghost"
-          onClick={() => router.push("/")}
-          className="text-muted-foreground"
-        >
-          <FaIcon icon={faArrowLeft} className="mr-2 h-3.5 w-3.5" />
-          Dashboard
-        </Button>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            onClick={() => router.push("/")}
+            className="text-muted-foreground"
+          >
+            <FaIcon icon={faArrowLeft} className="mr-2 h-3.5 w-3.5" />
+            Dashboard
+          </Button>
+          {questionSetName && (
+            <h1 className="text-lg font-semibold text-foreground">{questionSetName}</h1>
+          )}
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -575,6 +584,38 @@ export default function ResultsPage({
                                 <p className="text-sm text-slate-300 leading-relaxed">
                                   {r.missing_link}
                                 </p>
+                              </div>
+                            )}
+
+                            {/* Answer Change Log */}
+                            {r.answer_changes && r.answer_changes.length > 0 && (
+                              <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                                <h4 className="text-xs font-semibold text-amber-400 mb-2 flex items-center gap-1.5">
+                                  <FaIcon icon={faRepeat} className="h-3 w-3" />
+                                  Answer Changes
+                                </h4>
+                                <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                                  {/* First answer */}
+                                  <span className="px-2 py-0.5 rounded bg-slate-700 text-slate-300 font-mono font-bold">
+                                    {r.first_answer ?? r.answer_changes[0]?.from ?? "?"}
+                                  </span>
+                                  {r.answer_changes.map((change, i) => (
+                                    <React.Fragment key={i}>
+                                      <span className="text-slate-500 text-[10px]">
+                                        ({formatTimeShort(Math.round(change.timestamp_offset_ms / 1000))}) →
+                                      </span>
+                                      <span className={`px-2 py-0.5 rounded font-mono font-bold ${
+                                        i === r.answer_changes.length - 1
+                                          ? r.is_correct
+                                            ? "bg-green-600/30 text-green-300"
+                                            : "bg-red-600/30 text-red-300"
+                                          : "bg-slate-700 text-slate-300"
+                                      }`}>
+                                        {change.to}
+                                      </span>
+                                    </React.Fragment>
+                                  ))}
+                                </div>
                               </div>
                             )}
 
