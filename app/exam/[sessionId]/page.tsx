@@ -21,6 +21,7 @@ import {
   MultiSourceTabs,
   GraphicsRenderer,
   PassageContent,
+  renderTextWithTable,
 } from "@/components/exam/DIRenderers";
 import type { Passage } from "@/types/gmat";
 import { toast } from "sonner";
@@ -699,10 +700,10 @@ export default function ExamPage({
   })();
 
   const timerColors = {
-    none: "text-slate-300",
-    caution: "text-yellow-400",
-    warning: "text-orange-400",
-    danger: "text-red-400 animate-pulse",
+    none: "text-slate-600 dark:text-slate-300",
+    caution: "text-yellow-600 dark:text-yellow-400",
+    warning: "text-orange-500 dark:text-orange-400",
+    danger: "text-red-500 dark:text-red-400 animate-pulse",
   };
 
   if (!currentQ || !isActive) return null;
@@ -726,7 +727,7 @@ export default function ExamPage({
   return (
     <div className="min-h-screen flex flex-col bg-[var(--exam-bg)]">
       {/* ── Top Bar ── */}
-      <header className="border-b border-[var(--exam-header-border)] bg-[var(--exam-header-bg)]/95 backdrop-blur sticky top-0 z-30">
+      <header className="border-b border-zinc-200 dark:border-[#1e293b] bg-white/95 dark:bg-[#0A1628]/95 backdrop-blur sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-4">
           {/* Progress dots */}
           <div className="flex gap-1 flex-1 overflow-x-auto">
@@ -746,7 +747,7 @@ export default function ExamPage({
                             ? "bg-green-600/80 text-white"
                             : "bg-red-600/80 text-white"
                           : "bg-slate-600 text-white"
-                        : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                        : "bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
                   } ${s?.flagged ? "ring-1 ring-yellow-400" : ""}`}
                 >
                   {i + 1}
@@ -768,7 +769,7 @@ export default function ExamPage({
             <Button
               size="sm"
               variant="outline"
-              className="border-slate-500/40 text-slate-300 hover:bg-slate-500/10 text-xs"
+              className="border-slate-300 dark:border-slate-500/40 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-500/10 text-xs"
               onClick={() => router.push("/")}
             >
               <span className="inline-flex items-center gap-2">
@@ -925,7 +926,7 @@ export default function ExamPage({
       </main>
 
       {/* ── Bottom navigation ── */}
-      <footer className="border-t border-[var(--exam-header-border)] bg-[var(--exam-header-bg)]/95 backdrop-blur sticky bottom-0">
+      <footer className="border-t border-zinc-200 dark:border-[#1e293b] bg-white/95 dark:bg-[#0A1628]/95 backdrop-blur sticky bottom-0">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           {isSimulation ? (
             <div />
@@ -1119,9 +1120,7 @@ function QuestionPanel({
             )}
           </div>
         ) : (
-          <p className="text-base leading-relaxed whitespace-pre-wrap">
-            {q.stem}
-          </p>
+          renderTextWithTable(q.stem)
         )}
       </div>
 

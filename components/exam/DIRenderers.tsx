@@ -30,6 +30,95 @@ function parseMarkdownTable(markdown: string): { headers: string[]; rows: string
   };
 }
 
+// ─── Text + Embedded Table Renderer ──────────────────────────
+
+export function renderTextWithTable(text: string): React.ReactNode {
+  if (!text) return null;
+
+  const lines = text.split('\n');
+  const segments: Array<{ type: 'text' | 'table'; content: string }> = [];
+  let currentText: string[] = [];
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^\s*\|/.test(line)) {
+      if (currentText.length > 0) {
+        segments.push({ type: 'text', content: currentText.join('\n') });
+        currentText = [];
+      }
+      const tableLines: string[] = [];
+      while (i < lines.length) {
+        if (/^\s*\|/.test(lines[i])) {
+          tableLines.push(lines[i]);
+          i++;
+        } else if (/^\s*$/.test(lines[i]) && tableLines.length > 0) {
+          break;
+        } else {
+          break;
+        }
+      }
+      segments.push({ type: 'table', content: tableLines.join('\n') });
+    } else {
+      currentText.push(line);
+      i++;
+    }
+  }
+  if (currentText.length > 0) {
+    segments.push({ type: 'text', content: currentText.join('\n') });
+  }
+
+  if (segments.every((s) => s.type === 'text')) {
+    return <p className="text-base leading-relaxed whitespace-pre-wrap">{text}</p>;
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {segments.map((seg, idx) => {
+        if (seg.type === 'text') {
+          const trimmed = seg.content.trim();
+          if (!trimmed) return null;
+          return (
+            <p key={idx} className="text-base leading-relaxed whitespace-pre-wrap">
+              {trimmed}
+            </p>
+          );
+        }
+        const { headers, rows } = parseMarkdownTable(seg.content);
+        if (headers.length === 0 && rows.length === 0) return null;
+        return (
+          <div key={idx} className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+            <Table>
+              {headers.length > 0 && (
+                <TableHeader>
+                  <TableRow className="border-zinc-200 dark:border-zinc-700 hover:bg-transparent">
+                    {headers.map((h, hi) => (
+                      <TableHead key={hi} className="text-zinc-700 dark:text-zinc-300 font-semibold border-r last:border-r-0 border-zinc-200 dark:border-zinc-700 whitespace-normal">
+                        {h}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+              )}
+              <TableBody>
+                {rows.map((row, ri) => (
+                  <TableRow key={ri} className="border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
+                    {row.map((cell, ci) => (
+                      <TableCell key={ci} className="text-zinc-800 dark:text-zinc-200 border-r last:border-r-0 border-zinc-200 dark:border-zinc-700 whitespace-normal py-2">
+                        {cell}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Shared helpers ───────────────────────────────────────────
 
 const CHOICE_KEYS = ['A', 'B', 'C', 'D', 'E'] as const;
@@ -193,31 +282,31 @@ export function TwoPartRenderer({
   })).filter((r) => r.value !== '');
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-700">
+    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
       <Table>
         <TableHeader>
-          <TableRow className="border-zinc-700 hover:bg-transparent">
-            <TableHead className="text-zinc-300 font-semibold border-r border-zinc-700 min-w-[200px]">
+          <TableRow className="border-zinc-200 dark:border-zinc-700 hover:bg-transparent">
+            <TableHead className="text-zinc-700 dark:text-zinc-300 font-semibold border-r border-zinc-200 dark:border-zinc-700 min-w-[200px]">
               Choice
             </TableHead>
-            <TableHead className="text-zinc-300 font-semibold border-r border-zinc-700 text-center w-32">
-              <div className="text-xs text-zinc-400 mb-0.5">Part 1</div>
+            <TableHead className="text-zinc-700 dark:text-zinc-300 font-semibold border-r border-zinc-200 dark:border-zinc-700 text-center w-32">
+              <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">Part 1</div>
               <div>{col1Label}</div>
             </TableHead>
-            <TableHead className="text-zinc-300 font-semibold text-center w-32">
-              <div className="text-xs text-zinc-400 mb-0.5">Part 2</div>
+            <TableHead className="text-zinc-700 dark:text-zinc-300 font-semibold text-center w-32">
+              <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">Part 2</div>
               <div>{col2Label}</div>
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map(({ key, value }) => (
-            <TableRow key={key} className="border-zinc-700 hover:bg-zinc-800/30">
-              <TableCell className="text-zinc-200 border-r border-zinc-700 whitespace-normal py-3">
-                <span className="font-semibold text-zinc-400 mr-2">{key}.</span>
+            <TableRow key={key} className="border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
+              <TableCell className="text-zinc-800 dark:text-zinc-200 border-r border-zinc-200 dark:border-zinc-700 whitespace-normal py-3">
+                <span className="font-semibold text-zinc-500 dark:text-zinc-400 mr-2">{key}.</span>
                 {value}
               </TableCell>
-              <TableCell className="border-r border-zinc-700 py-3">
+              <TableCell className="border-r border-zinc-200 dark:border-zinc-700 py-3">
                 <div
                   className={part1CellClasses(key)}
                   onClick={() => !locked && onSelect(key)}
@@ -227,7 +316,7 @@ export function TwoPartRenderer({
                       'mx-auto w-4 h-4 rounded-full border-2 flex items-center justify-center',
                       selectedAnswer === key
                         ? 'border-blue-500 bg-blue-500'
-                        : 'border-zinc-500'
+                        : 'border-zinc-400 dark:border-zinc-500'
                     )}
                   >
                     {selectedAnswer === key && (
@@ -246,7 +335,7 @@ export function TwoPartRenderer({
                       'mx-auto w-4 h-4 rounded-full border-2 flex items-center justify-center',
                       selectedAnswer2 === key
                         ? 'border-blue-500 bg-blue-500'
-                        : 'border-zinc-500'
+                        : 'border-zinc-400 dark:border-zinc-500'
                     )}
                   >
                     {selectedAnswer2 === key && (
@@ -317,13 +406,13 @@ export function TableAnalysisRenderer({
     <div className="flex flex-col gap-4">
       {/* Scrollable table — hidden when left panel already shows it */}
       {!hideSources && (
-        <div className="overflow-x-auto rounded-lg border border-zinc-700 max-h-72 overflow-y-auto">
+        <div className="overflow-x-auto rounded-lg border border-zinc-700 max-h-72 overflow-y-auto bg-zinc-900">
           <Table>
             {headers.length > 0 && (
               <TableHeader>
-                <TableRow className="border-zinc-700 hover:bg-transparent sticky top-0 bg-zinc-900">
+                <TableRow className="border-zinc-200 dark:border-zinc-700 hover:bg-transparent sticky top-0 bg-gray-50 dark:bg-zinc-900">
                   {headers.map((h, i) => (
-                    <TableHead key={i} className="text-zinc-300 font-semibold border-r last:border-r-0 border-zinc-700 whitespace-normal">
+                    <TableHead key={i} className="text-zinc-700 dark:text-zinc-300 font-semibold border-r last:border-r-0 border-zinc-200 dark:border-zinc-700 whitespace-normal">
                       {h}
                     </TableHead>
                   ))}
@@ -332,9 +421,9 @@ export function TableAnalysisRenderer({
             )}
             <TableBody>
               {rows.map((row, ri) => (
-                <TableRow key={ri} className="border-zinc-700 hover:bg-zinc-800/30">
+                <TableRow key={ri} className="border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
                   {row.map((cell, ci) => (
-                    <TableCell key={ci} className="text-zinc-200 border-r last:border-r-0 border-zinc-700 whitespace-normal py-2">
+                    <TableCell key={ci} className="text-zinc-800 dark:text-zinc-200 border-r last:border-r-0 border-zinc-200 dark:border-zinc-700 whitespace-normal py-2">
                       {cell}
                     </TableCell>
                   ))}
@@ -370,13 +459,13 @@ export function PassageContent({ passage }: { passage: Passage }) {
   if (passage.passage_type === 'table_markdown') {
     const { headers, rows } = parseMarkdownTable(passage.passage_text);
     return (
-      <div className="overflow-x-auto rounded-lg border border-zinc-700 max-h-72 overflow-y-auto">
+      <div className="overflow-x-auto rounded-lg border border-zinc-700 max-h-72 overflow-y-auto bg-zinc-900">
         <Table>
           {headers.length > 0 && (
             <TableHeader>
-              <TableRow className="border-zinc-700 hover:bg-transparent sticky top-0 bg-zinc-900">
+              <TableRow className="border-zinc-200 dark:border-zinc-700 hover:bg-transparent sticky top-0 bg-gray-50 dark:bg-zinc-900">
                 {headers.map((h, i) => (
-                  <TableHead key={i} className="text-zinc-300 font-semibold border-r last:border-r-0 border-zinc-700 whitespace-normal">
+                  <TableHead key={i} className="text-zinc-700 dark:text-zinc-300 font-semibold border-r last:border-r-0 border-zinc-200 dark:border-zinc-700 whitespace-normal">
                     {h}
                   </TableHead>
                 ))}
@@ -385,9 +474,9 @@ export function PassageContent({ passage }: { passage: Passage }) {
           )}
           <TableBody>
             {rows.map((row, ri) => (
-              <TableRow key={ri} className="border-zinc-700 hover:bg-zinc-800/30">
+              <TableRow key={ri} className="border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
                 {row.map((cell, ci) => (
-                  <TableCell key={ci} className="text-zinc-200 border-r last:border-r-0 border-zinc-700 whitespace-normal py-2">
+                  <TableCell key={ci} className="text-zinc-800 dark:text-zinc-200 border-r last:border-r-0 border-zinc-200 dark:border-zinc-700 whitespace-normal py-2">
                     {cell}
                   </TableCell>
                 ))}
