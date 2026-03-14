@@ -290,7 +290,11 @@ export default function AnalyticsPage() {
     const changed = filteredResponses.filter(
       (r) => r.answer_changes && r.answer_changes.length > 0,
     );
+    const kept = filteredResponses.filter(
+      (r) => !r.answer_changes || r.answer_changes.length === 0,
+    );
     const helped = changed.filter((r) => r.is_correct).length;
+    const keptCorrect = kept.filter((r) => r.is_correct).length;
     return {
       total: changed.length,
       helped,
@@ -298,6 +302,9 @@ export default function AnalyticsPage() {
       rate: filteredResponses.length
         ? Math.round((changed.length / filteredResponses.length) * 100)
         : 0,
+      keptCount: kept.length,
+      keptAccuracy: kept.length ? Math.round((keptCorrect / kept.length) * 100) : null,
+      changedAccuracy: changed.length ? Math.round((helped / changed.length) * 100) : null,
     };
   }, [filteredResponses]);
 
@@ -779,80 +786,121 @@ export default function AnalyticsPage() {
             )}
 
             {/* Behavioral Patterns */}
-            <Card className="glass-card animate-slide-up">
+            <Card className="glass-card animate-slide-up md:col-span-2">
               <CardHeader>
                 <CardTitle className="text-sm">Behavioral Patterns</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Answer Changes */}
-                <div className="glass rounded-lg p-4">
-                  <h4 className="text-xs font-semibold text-yellow-400 mb-3">
-                    <span className="inline-flex items-center gap-2">
-                      <FaIcon icon={faArrowsRotate} className="h-3.5 w-3.5" />
-                      Answer Changes
-                    </span>
-                  </h4>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div>
-                      <p className="text-xl font-bold">
-                        {changeAnalysis.total}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Changed</p>
-                    </div>
-                    <div>
-                      <p className="text-xl font-bold text-green-400">
-                        {changeAnalysis.helped}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Helped</p>
-                    </div>
-                    <div>
-                      <p className="text-xl font-bold text-red-400">
-                        {changeAnalysis.hurt}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Hurt</p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2 text-center">
-                    {changeAnalysis.helped >= changeAnalysis.hurt ? (
-                      <span className="inline-flex items-center gap-2">
-                        <FaIcon icon={faCircleCheck} className="h-3.5 w-3.5 text-emerald-400" />
-                        Changing answers tends to help you
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-2">
-                        <FaIcon icon={faTriangleExclamation} className="h-3.5 w-3.5 text-amber-400" />
-                        Trust your first instinct more
-                      </span>
-                    )}
-                  </p>
-                </div>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row gap-0 divide-y sm:divide-y-0 sm:divide-x divide-border">
 
-                {/* Flag Analysis */}
-                <div className="glass rounded-lg p-4">
-                  <h4 className="text-xs font-semibold text-blue-400 mb-3">
-                    <span className="inline-flex items-center gap-2">
-                      <FaIcon icon={faFlag} className="h-3.5 w-3.5" />
-                      Flag vs Accuracy
-                    </span>
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4 text-center">
-                    <div>
-                      <p className="text-xl font-bold">
-                        {flagAnalysis.flaggedAccuracy}%
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Flagged ({flagAnalysis.flaggedCount}Q)
-                      </p>
+                  {/* ── Answer Changes ── */}
+                  <div className="flex-1 space-y-4 py-2 sm:pr-6">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-semibold text-yellow-400 flex items-center gap-1.5">
+                        <FaIcon icon={faArrowsRotate} className="h-3.5 w-3.5" />
+                        Answer Changes
+                      </h4>
+                      <span className="text-[10px] text-muted-foreground tabular-nums">
+                        {changeAnalysis.total} lần · {changeAnalysis.rate}%
+                      </span>
                     </div>
-                    <div>
-                      <p className="text-xl font-bold">
-                        {flagAnalysis.unflaggedAccuracy}%
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Not Flagged
-                      </p>
-                    </div>
+
+                    {changeAnalysis.total > 0 ? (
+                      <>
+                        {/* Compact stat row */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 text-center">
+                            <p className="text-xl font-bold tabular-nums leading-none">{changeAnalysis.keptAccuracy ?? '–'}%</p>
+                            <p className="text-[10px] text-muted-foreground mt-1">First answer</p>
+                            <p className="text-[10px] text-slate-500">{changeAnalysis.keptCount}Q</p>
+                          </div>
+                          <div className="flex flex-col items-center gap-0.5 shrink-0 px-1">
+                            <FaIcon icon={faArrowRight} className="h-3 w-3 text-slate-500" />
+                            {changeAnalysis.changedAccuracy !== null && changeAnalysis.keptAccuracy !== null && (
+                              <span className={`text-[9px] font-bold ${changeAnalysis.changedAccuracy >= changeAnalysis.keptAccuracy ? 'text-green-400' : 'text-red-400'}`}>
+                                {changeAnalysis.changedAccuracy >= changeAnalysis.keptAccuracy ? '+' : ''}{changeAnalysis.changedAccuracy - changeAnalysis.keptAccuracy}%
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 text-center">
+                            <p className={`text-xl font-bold tabular-nums leading-none ${changeAnalysis.changedAccuracy !== null && changeAnalysis.keptAccuracy !== null ? (changeAnalysis.changedAccuracy >= changeAnalysis.keptAccuracy ? 'text-green-400' : 'text-red-400') : ''}`}>
+                              {changeAnalysis.changedAccuracy ?? '–'}%
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-1">After change</p>
+                            <p className="text-[10px] text-slate-500">{changeAnalysis.total}Q</p>
+                          </div>
+                        </div>
+
+                        {/* Helped / Hurt bar */}
+                        <div className="space-y-1">
+                          <div className="flex h-2 rounded-full overflow-hidden">
+                            <div className="bg-green-500/80 transition-all" style={{ width: `${Math.round((changeAnalysis.helped / changeAnalysis.total) * 100)}%` }} />
+                            <div className="bg-red-500/70 flex-1" />
+                          </div>
+                          <div className="flex justify-between text-[10px]">
+                            <span className="text-green-400">{changeAnalysis.helped} helped</span>
+                            <span className="text-red-400">{changeAnalysis.hurt} hurt</span>
+                          </div>
+                        </div>
+
+                        {/* Verdict */}
+                        {changeAnalysis.changedAccuracy !== null && changeAnalysis.keptAccuracy !== null && (
+                          <div className={`text-[11px] flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${changeAnalysis.changedAccuracy > changeAnalysis.keptAccuracy ? 'bg-green-500/10 text-green-400' : changeAnalysis.changedAccuracy < changeAnalysis.keptAccuracy ? 'bg-amber-500/10 text-amber-400' : 'bg-slate-500/10 text-slate-400'}`}>
+                            <FaIcon icon={changeAnalysis.changedAccuracy > changeAnalysis.keptAccuracy ? faCircleCheck : changeAnalysis.changedAccuracy < changeAnalysis.keptAccuracy ? faTriangleExclamation : faCircleCheck} className="h-3 w-3 shrink-0" />
+                            {changeAnalysis.changedAccuracy > changeAnalysis.keptAccuracy ? 'Thay đáp án giúp bạn tốt hơn' : changeAnalysis.changedAccuracy < changeAnalysis.keptAccuracy ? 'Tin vào đáp án đầu tiên' : 'Kết quả tương đương'}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground py-2">Không có lần đổi đáp án nào</p>
+                    )}
                   </div>
+
+                  {/* ── Flag vs Accuracy ── */}
+                  <div className="flex-1 space-y-4 py-2 sm:pl-6 pt-4 sm:pt-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-semibold text-blue-400 flex items-center gap-1.5">
+                        <FaIcon icon={faFlag} className="h-3.5 w-3.5" />
+                        Flag vs Accuracy
+                      </h4>
+                      <span className="text-[10px] text-muted-foreground tabular-nums">
+                        {flagAnalysis.flaggedCount} flagged
+                      </span>
+                    </div>
+
+                    {flagAnalysis.flaggedCount > 0 ? (
+                      <>
+                        {/* Bar comparison */}
+                        <div className="space-y-3">
+                          {[
+                            { label: 'Flagged', count: `${flagAnalysis.flaggedCount}Q`, value: flagAnalysis.flaggedAccuracy, color: 'bg-blue-400/80', textColor: 'text-blue-300' },
+                            { label: 'Not Flagged', count: null, value: flagAnalysis.unflaggedAccuracy, color: 'bg-slate-400/60', textColor: 'text-slate-300' },
+                          ].map(({ label, count, value, color, textColor }) => (
+                            <div key={label} className="space-y-1">
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="text-muted-foreground">
+                                  {label}{count && <span className="text-slate-500 ml-1">{count}</span>}
+                                </span>
+                                <span className={`font-semibold tabular-nums ${textColor}`}>{value}%</span>
+                              </div>
+                              <div className="h-2 rounded-full bg-slate-700/50 overflow-hidden">
+                                <div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${value}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Insight */}
+                        <div className={`text-[11px] flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${flagAnalysis.flaggedAccuracy < flagAnalysis.unflaggedAccuracy ? 'bg-slate-500/10 text-slate-400' : 'bg-green-500/10 text-green-400'}`}>
+                          <FaIcon icon={flagAnalysis.flaggedAccuracy < flagAnalysis.unflaggedAccuracy ? faMagnifyingGlass : faCircleCheck} className="h-3 w-3 shrink-0" />
+                          {flagAnalysis.flaggedAccuracy < flagAnalysis.unflaggedAccuracy ? 'Câu flag là điểm yếu cần ôn thêm' : 'Flag giúp xử lý tốt hơn câu khó'}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground py-2">Không có câu nào được flag</p>
+                    )}
+                  </div>
+
                 </div>
               </CardContent>
             </Card>
