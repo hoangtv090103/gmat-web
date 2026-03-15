@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Table,
@@ -376,35 +376,43 @@ export function TableAnalysisRenderer({
 }: TableAnalysisRendererProps) {
   const { headers, rows } = hideSources ? { headers: [], rows: [] } : parseMarkdownTable(passage.passage_text);
 
-  function tfButtonClasses(key: 'A' | 'B'): string {
+  function tfCellState(key: 'A' | 'B') {
     const isSelected = selectedAnswer === key;
     const isCorrect = question.correct_answer === key;
-
-    let stateClasses = '';
     if (showCorrect) {
-      if (isCorrect) {
-        stateClasses = 'bg-green-500/15 border-green-500 text-green-800 dark:text-green-200';
-      } else if (isSelected) {
-        stateClasses = 'bg-red-500/15 border-red-500 text-red-800 dark:text-red-200';
-      } else {
-        stateClasses = 'bg-zinc-100 border-zinc-300 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800/50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50';
-      }
-    } else if (isSelected) {
-      stateClasses = 'bg-blue-500/15 border-blue-500 text-blue-800 dark:text-blue-200';
-    } else {
-      stateClasses = 'bg-zinc-100 border-zinc-300 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800/50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50';
+      if (isCorrect) return 'correct';
+      if (isSelected) return 'wrong';
     }
+    if (isSelected) return 'selected';
+    return 'idle';
+  }
 
+  function radioClasses(key: 'A' | 'B') {
+    const state = tfCellState(key);
     return cn(
-      'px-8 py-2.5 rounded-lg border text-sm font-medium transition-colors',
-      stateClasses,
-      locked && 'pointer-events-none opacity-70'
+      'mx-auto w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors',
+      state === 'correct' && 'border-green-500 bg-green-500',
+      state === 'wrong' && 'border-red-500 bg-red-500',
+      state === 'selected' && 'border-blue-500 bg-blue-500',
+      state === 'idle' && 'border-zinc-400 dark:border-zinc-500 bg-transparent',
+    );
+  }
+
+  function cellBgClasses(key: 'A' | 'B') {
+    const state = tfCellState(key);
+    return cn(
+      'cursor-pointer text-center px-4 py-4 transition-colors select-none',
+      state === 'correct' && 'bg-green-500/10',
+      state === 'wrong' && 'bg-red-500/10',
+      state === 'selected' && 'bg-blue-500/10',
+      state === 'idle' && 'hover:bg-zinc-100 dark:hover:bg-zinc-700/40',
+      locked && 'pointer-events-none',
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Scrollable table — hidden when left panel already shows it */}
+      {/* Inline table — hidden when left panel shows it */}
       {!hideSources && (
         <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700 max-h-72 overflow-y-auto bg-white dark:bg-zinc-900">
           <Table>
@@ -434,46 +442,110 @@ export function TableAnalysisRenderer({
         </div>
       )}
 
-      {/* True / False buttons */}
-      <div className="flex gap-3">
-        <button
-          onClick={() => !locked && onSelect('A')}
-          className={tfButtonClasses('A')}
-        >
-          True
-        </button>
-        <button
-          onClick={() => !locked && onSelect('B')}
-          className={tfButtonClasses('B')}
-        >
-          False
-        </button>
+      {/* True / False — GMAT grid style */}
+      <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-zinc-200 dark:border-zinc-700 hover:bg-transparent bg-zinc-50 dark:bg-zinc-800/50">
+              <TableHead className="text-center text-zinc-700 dark:text-zinc-300 font-semibold border-r border-zinc-200 dark:border-zinc-700 w-28 py-3">
+                True
+              </TableHead>
+              <TableHead className="text-center text-zinc-700 dark:text-zinc-300 font-semibold w-28 py-3">
+                False
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow className="border-0 hover:bg-transparent">
+              <TableCell
+                className={cn('border-r border-zinc-200 dark:border-zinc-700 p-0', cellBgClasses('A'))}
+                onClick={() => !locked && onSelect('A')}
+              >
+                <div className={radioClasses('A')}>
+                  {tfCellState('A') !== 'idle' && (
+                    <div className="w-2 h-2 rounded-full bg-white" />
+                  )}
+                </div>
+              </TableCell>
+              <TableCell
+                className={cn('p-0', cellBgClasses('B'))}
+                onClick={() => !locked && onSelect('B')}
+              >
+                <div className={radioClasses('B')}>
+                  {tfCellState('B') !== 'idle' && (
+                    <div className="w-2 h-2 rounded-full bg-white" />
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
 }
 
-// ─── Passage content renderer (used by MSR and exam page left panel) ────────
+// ─── Sortable table for Table Analysis ──────────────────────────────────────
 
-export function PassageContent({ passage }: { passage: Passage }) {
-  if (passage.passage_type === 'table_markdown') {
-    const { headers, rows } = parseMarkdownTable(passage.passage_text);
-    return (
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700 max-h-[calc(100vh-12rem)] overflow-y-auto bg-white dark:bg-zinc-900">
+function SortablePassageTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
+  const [sortCol, setSortCol] = useState<number>(0);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handleColSort = (col: number) => {
+    if (sortCol === col) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortCol(col);
+      setSortDir('asc');
+    }
+  };
+
+  const sorted = [...rows].sort((a, b) => {
+    const av = a[sortCol] ?? '';
+    const bv = b[sortCol] ?? '';
+    const an = parseFloat(av.replace(/[^0-9.-]/g, ''));
+    const bn = parseFloat(bv.replace(/[^0-9.-]/g, ''));
+    const cmp = !isNaN(an) && !isNaN(bn) ? an - bn : av.localeCompare(bv);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  return (
+    <div className="flex flex-col rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+      {/* Sort-by row */}
+      <div className="px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 shrink-0">
+        <span className="font-semibold">Sort by:</span>
+        <select
+          value={sortCol}
+          onChange={(e) => { setSortCol(Number(e.target.value)); setSortDir('asc'); }}
+          className="border border-zinc-300 dark:border-zinc-600 rounded px-1.5 py-0.5 text-xs bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+        >
+          {headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
+        </select>
+        <button
+          onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
+          className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+        >
+          {sortDir === 'asc' ? '↑' : '↓'}
+        </button>
+      </div>
+      {/* Table */}
+      <div className="overflow-x-auto max-h-[calc(100vh-14rem)] overflow-y-auto bg-white dark:bg-zinc-900">
         <Table>
-          {headers.length > 0 && (
-            <TableHeader>
-              <TableRow className="border-zinc-200 dark:border-zinc-700 hover:bg-transparent sticky top-0 bg-zinc-50 dark:bg-zinc-900 z-10">
-                {headers.map((h, i) => (
-                  <TableHead key={i} className="text-zinc-700 dark:text-zinc-300 font-semibold border-r last:border-r-0 border-zinc-200 dark:border-zinc-700 whitespace-normal">
-                    {h}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-          )}
+          <TableHeader>
+            <TableRow className="border-zinc-200 dark:border-zinc-700 hover:bg-transparent sticky top-0 bg-zinc-50 dark:bg-zinc-900 z-10">
+              {headers.map((h, i) => (
+                <TableHead
+                  key={i}
+                  onClick={() => handleColSort(i)}
+                  className="cursor-pointer select-none text-zinc-700 dark:text-zinc-300 font-semibold border-r last:border-r-0 border-zinc-200 dark:border-zinc-700 whitespace-normal hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  {h} {sortCol === i ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
           <TableBody>
-            {rows.map((row, ri) => (
+            {sorted.map((row, ri) => (
               <TableRow key={ri} className="border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
                 {row.map((cell, ci) => (
                   <TableCell key={ci} className="text-zinc-800 dark:text-zinc-200 border-r last:border-r-0 border-zinc-200 dark:border-zinc-700 whitespace-normal py-2.5">
@@ -485,7 +557,16 @@ export function PassageContent({ passage }: { passage: Passage }) {
           </TableBody>
         </Table>
       </div>
-    );
+    </div>
+  );
+}
+
+// ─── Passage content renderer (used by MSR and exam page left panel) ────────
+
+export function PassageContent({ passage }: { passage: Passage }) {
+  if (passage.passage_type === 'table_markdown') {
+    const { headers, rows } = parseMarkdownTable(passage.passage_text);
+    return <SortablePassageTable headers={headers} rows={rows} />;
   }
 
   if (passage.passage_type === 'image_url') {

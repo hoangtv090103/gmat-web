@@ -399,6 +399,17 @@ export default function ExamPage({
   const [passages, setPassages] = useState<Passage[]>([]);
   const [groupPassages, setGroupPassages] = useState<Passage[]>([]);
 
+  // ── Review & Edit state ──────────────────────────────────────
+  const [isInReviewEdit, setIsInReviewEdit] = useState(false);
+  const [reviewEditCount, setReviewEditCount] = useState(0);
+  const [reviewEditQuestion, setReviewEditQuestion] = useState<number | null>(null);
+  const [reviewEditOriginalAnswer, setReviewEditOriginalAnswer] = useState<string | null>(null);
+  const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const [reviewEditedSet, setReviewEditedSet] = useState<Set<number>>(new Set());
+
+  // ── Timer Ring preference ────────────────────────────────────
+  const [timerRingEnabled, setTimerRingEnabled] = useState(true);
+
   const {
     mode,
     questions,
@@ -492,6 +503,11 @@ export default function ExamPage({
     triageDismissedRef.current = qs?.triageDismissed || false;
   }, [currentIndex]);
 
+  // ── Read Timer Ring preference ────────────────────────────
+  useEffect(() => {
+    setTimerRingEnabled(localStorage.getItem("gmat-show-timer-ring") !== "false");
+  }, []);
+
   // ── Global session timer ──────────────────────────────────
   useEffect(() => {
     if (!isActive) return;
@@ -515,6 +531,7 @@ export default function ExamPage({
           trackEvent("time_warning_30sec");
         }
         if (remaining <= 0) {
+          setIsInReviewEdit(false);
           handleSubmit();
         }
       }
@@ -661,6 +678,44 @@ export default function ExamPage({
     triageDismissedRef.current = true;
   };
 
+  // ── Review & Edit handlers ────────────────────────────────
+  const handleSubmitClick = () => {
+    if ((mode === "timed" || mode === "simulation") && remainingTimeMs > 0) {
+      setIsInReviewEdit(true);
+      setReviewEditCount(0);
+      setReviewEditedSet(new Set());
+    } else {
+      handleSubmit();
+    }
+  };
+
+  const startEditQuestion = (i: number) => {
+    if (reviewEditCount >= 3) {
+      toast.info("No edits remaining (max 3)");
+      return;
+    }
+    setReviewEditOriginalAnswer(questionStates[i]?.selectedAnswer ?? null);
+    setReviewEditQuestion(i);
+    navigateTo(i);
+  };
+
+  const confirmEdit = () => {
+    setReviewEditedSet((s) => new Set(s).add(reviewEditQuestion!));
+    setReviewEditCount((c) => c + 1);
+    setReviewEditQuestion(null);
+    setReviewEditOriginalAnswer(null);
+    setShowEditConfirm(false);
+  };
+
+  const cancelEdit = () => {
+    if (reviewEditOriginalAnswer !== null) {
+      selectAnswer(reviewEditOriginalAnswer);
+    }
+    setReviewEditQuestion(null);
+    setReviewEditOriginalAnswer(null);
+    setShowEditConfirm(false);
+  };
+
   const handleUnlockChoices = () => {
     setMissingLink(mlDraft);
     unlockChoices();
@@ -717,7 +772,9 @@ export default function ExamPage({
     }))
     .filter((c) => c.text);
 
+  const isGmatMode = mode === "timed" || mode === "simulation";
   const showTimerRing =
+    timerRingEnabled &&
     mode !== "review" &&
     qs?.questionTimerStartMs > 0 &&
     (isSimulation || (qs?.choicesUnlocked && qs?.passageMapComplete));
@@ -727,70 +784,162 @@ export default function ExamPage({
   return (
     <div className="min-h-screen flex flex-col bg-[var(--exam-bg)]">
       {/* ── Top Bar ── */}
-      <header className="border-b border-zinc-200 dark:border-[#1e293b] bg-white/95 dark:bg-[#0A1628]/95 backdrop-blur sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-4">
-          {/* Progress dots */}
-          <div className="flex gap-1 flex-1 overflow-x-auto">
-            {questions.map((q, i) => {
-              const s = questionStates[i];
-              const isCorrect = s?.selectedAnswer === q.correct_answer;
-              return (
-                <button
-                  key={i}
-                  onClick={() => navigateTo(i)}
-                  className={`w-6 h-6 rounded text-xs font-bold flex-shrink-0 transition-all ${
-                    i === currentIndex
-                      ? "bg-blue-500 text-white scale-110 ring-2 ring-blue-400/50"
-                      : s?.selectedAnswer
-                        ? mode === "review"
-                          ? isCorrect
-                            ? "bg-green-600/80 text-white"
-                            : "bg-red-600/80 text-white"
-                          : "bg-slate-600 text-white"
-                        : "bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
-                  } ${s?.flagged ? "ring-1 ring-yellow-400" : ""}`}
-                >
-                  {i + 1}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Global timer */}
-          <div
-            className={`font-mono text-xl font-bold tabular-nums ${timerColors[warningLevel]}`}
-          >
-            {mode === "timed"
-              ? formatTime(remainingTimeMs)
-              : `+${formatTime(remainingTimeMs)}`}
-          </div>
-
-          {mode === "review" ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-slate-300 dark:border-slate-500/40 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-500/10 text-xs"
-              onClick={() => router.push("/")}
-            >
-              <span className="inline-flex items-center gap-2">
-                <FaIcon icon={faArrowLeft} className="h-3 w-3" /> Dashboard
-              </span>
-            </Button>
+      <header className={`border-b sticky top-0 z-30 backdrop-blur ${
+        isGmatMode
+          ? "border-[#1e3a8a] bg-[#1e3a8a]"
+          : "border-zinc-200 dark:border-[#1e293b] bg-white/95 dark:bg-[#0A1628]/95"
+      }`}>
+        <div className="max-w-6xl mx-auto px-4 py-2 flex items-center justify-between">
+          {isGmatMode ? (
+            <>
+              <span className="text-white/60 text-xs">Question {currentIndex + 1} of {questions.length}</span>
+              <span className={`font-mono text-lg font-bold tabular-nums ${
+                remainingTimeMs <= 30000
+                  ? "text-red-400 animate-pulse"
+                  : remainingTimeMs <= 300000
+                  ? "text-amber-400"
+                  : "text-white"
+              }`}>{formatTime(remainingTimeMs)}</span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-white/40 text-white hover:bg-white/10 text-xs"
+                onClick={handleSubmitClick}
+              >
+                Submit
+              </Button>
+            </>
           ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs"
-              onClick={handleSubmit}
-            >
-              Submit
-            </Button>
+            <>
+              {/* Progress dots */}
+              <div className="flex gap-1 flex-1 overflow-x-auto">
+                {questions.map((q, i) => {
+                  const s = questionStates[i];
+                  const isCorrect = s?.selectedAnswer === q.correct_answer;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => navigateTo(i)}
+                      className={`w-6 h-6 rounded text-xs font-bold flex-shrink-0 transition-all ${
+                        i === currentIndex
+                          ? "bg-blue-500 text-white scale-110 ring-2 ring-blue-400/50"
+                          : s?.selectedAnswer
+                            ? mode === "review"
+                              ? isCorrect
+                                ? "bg-green-600/80 text-white"
+                                : "bg-red-600/80 text-white"
+                              : "bg-slate-600 text-white"
+                            : "bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+                      } ${s?.flagged ? "ring-1 ring-yellow-400" : ""}`}
+                    >
+                      {i + 1}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Global timer */}
+              <div className={`font-mono text-xl font-bold tabular-nums ${timerColors[warningLevel]}`}>
+                {`+${formatTime(remainingTimeMs)}`}
+              </div>
+
+              {mode === "review" ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-slate-300 dark:border-slate-500/40 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-500/10 text-xs"
+                  onClick={() => router.push("/")}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <FaIcon icon={faArrowLeft} className="h-3 w-3" /> Dashboard
+                  </span>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs"
+                  onClick={handleSubmitClick}
+                >
+                  Submit
+                </Button>
+              )}
+            </>
           )}
         </div>
       </header>
 
+      {/* ── Review Center screen (replaces main+footer when in review overview) ── */}
+      {isInReviewEdit && reviewEditQuestion === null && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Dark top bar */}
+          <div className="bg-[#1a2942] px-6 py-2.5 flex items-center justify-between text-xs shrink-0">
+            <span className="text-white/60">Review Center</span>
+            <div className="flex items-center gap-4">
+              <span className={`font-mono font-bold ${
+                remainingTimeMs <= 30000 ? "text-red-400 animate-pulse" : remainingTimeMs <= 300000 ? "text-amber-400" : "text-amber-300"
+              }`}>⏱ {formatTime(remainingTimeMs)}</span>
+              <span className="text-green-400 font-semibold">Remaining Edits: {3 - reviewEditCount}</span>
+            </div>
+          </div>
+          {/* Blue sub-header */}
+          <div className="bg-[#2563eb] px-6 py-2 shrink-0">
+            <span className="text-white text-xs font-semibold uppercase tracking-wide">
+              Review Center
+            </span>
+          </div>
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto bg-white px-6 py-5">
+            <h3 className="text-base font-bold text-zinc-900 mb-1">Click on Question to Review &amp; Edit</h3>
+            <p className="text-xs text-zinc-500 mb-4">
+              You can review any question and edit up to 3 answers before time expires.
+            </p>
+            <table className="w-full border-collapse text-sm max-w-sm">
+              <thead>
+                <tr>
+                  <th className="text-left px-3 py-2 bg-zinc-50 border border-zinc-200 font-semibold text-zinc-600">Question</th>
+                  <th className="text-center px-3 py-2 bg-zinc-50 border border-zinc-200 font-semibold text-zinc-600">Bookmarked</th>
+                </tr>
+              </thead>
+              <tbody>
+                {questions.map((_, i) => {
+                  const qsi = questionStates[i];
+                  const edited = reviewEditedSet.has(i);
+                  return (
+                    <tr key={i} className="border-b border-zinc-100 hover:bg-zinc-50">
+                      <td className="px-3 py-2 border border-zinc-200">
+                        <button
+                          className="text-blue-600 underline font-medium text-sm"
+                          onClick={() => startEditQuestion(i)}
+                        >
+                          {i + 1}{edited ? " ✏" : ""}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2 border border-zinc-200 text-center">
+                        {qsi?.flagged && <FaIcon icon={faFlag} className="h-3.5 w-3.5 text-yellow-500 inline" />}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {/* Blue footer */}
+          <div className="bg-[#2563eb] px-6 py-2.5 flex items-center justify-between shrink-0">
+            <span className="text-white/70 text-xs cursor-default">? Help</span>
+            <Button
+              size="sm"
+              className="bg-white text-blue-800 font-bold text-xs hover:bg-white/90"
+              onClick={() => { setIsInReviewEdit(false); handleSubmit(); }}
+            >
+              End Section Review →
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* ── Main content ── */}
-      <main className={`flex-1 max-w-6xl mx-auto w-full px-4${(isRC || isMSR || isTableAnalysis || isGraphicsSplit) ? " overflow-hidden" : " py-6"}`}>
+      <main className={`flex-1 max-w-6xl mx-auto w-full px-4${(isRC || isMSR || isTableAnalysis || isGraphicsSplit) ? " overflow-hidden" : " py-6"}${isInReviewEdit && reviewEditQuestion === null ? " hidden" : ""}`}>
         {(isRC || isMSR || isTableAnalysis || isGraphicsSplit) ? (
           /* GMAT-style split layout — passage/sources left, question right */
           <div className="-mx-4 flex h-[calc(100vh-116px)] overflow-hidden">
@@ -798,14 +947,22 @@ export default function ExamPage({
             {/* ── Left: Passage / Source pane (57%) ── */}
             <div className="flex flex-col border-r border-[var(--exam-border)]" style={{ width: "57%" }}>
               {/* Header bar */}
-              <div className="px-6 py-2.5 border-b border-[var(--exam-border)] bg-[var(--exam-section-header-bg)] shrink-0 flex items-center justify-between">
-                <span className="text-[10.5px] font-semibold text-[var(--exam-text-muted)] uppercase tracking-[0.18em]">
+              <div className={`px-6 py-2.5 border-b border-[var(--exam-border)] shrink-0 flex items-center justify-between ${
+                (isMSR || isTableAnalysis || isGraphicsSplit)
+                  ? "bg-[#2d6bbd] dark:bg-[#1a4a8a]"
+                  : "bg-[var(--exam-section-header-bg)]"
+              }`}>
+                <span className={`text-[10.5px] font-semibold uppercase tracking-[0.18em] ${
+                  (isMSR || isTableAnalysis || isGraphicsSplit)
+                    ? "text-white/90"
+                    : "text-[var(--exam-text-muted)]"
+                }`}>
                   {isMSR
-                    ? "Multi-Source Reasoning"
+                    ? "Data Insights — Multi-Source Reasoning"
                     : currentQ?.question_type === "Table Analysis"
-                    ? "Table Analysis"
+                    ? "Data Insights — Table Analysis"
                     : currentQ?.question_type === "Graphics Interpretation"
-                    ? "Graphics Interpretation"
+                    ? "Data Insights — Graphics Interpretation"
                     : "Reading Comprehension"}
                 </span>
                 {!isSimulation && qs?.passageMapComplete && isRC && !isMSR && (
@@ -893,6 +1050,14 @@ export default function ExamPage({
                   currentPassage={currentPassage}
                   groupPassages={groupPassages}
                   isMSRSplit={isMSR}
+                  reviewBanner={isInReviewEdit && reviewEditQuestion !== null ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 flex items-center justify-between">
+                      <span className="text-amber-800 text-xs font-medium">
+                        ⚠ Review Mode — Editing Q{reviewEditQuestion + 1} · {3 - reviewEditCount} edits remaining · Select your answer then click Confirm
+                      </span>
+                      <Button size="sm" variant="outline" className="border-amber-400 text-amber-700 text-xs h-7 ml-3 flex-shrink-0" onClick={() => setShowEditConfirm(true)}>Confirm</Button>
+                    </div>
+                  ) : undefined}
                 />
               </div>
             </div>
@@ -921,61 +1086,150 @@ export default function ExamPage({
             totalQuestions={questions.length}
             currentPassage={currentPassage}
             groupPassages={groupPassages}
+            reviewBanner={isInReviewEdit && reviewEditQuestion !== null ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 flex items-center justify-between">
+                <span className="text-amber-800 text-xs font-medium">
+                  ⚠ Review Mode — Editing Q{reviewEditQuestion + 1} · {3 - reviewEditCount} edits remaining · Select your answer then click Confirm
+                </span>
+                <Button size="sm" variant="outline" className="border-amber-400 text-amber-700 text-xs h-7 ml-3 flex-shrink-0" onClick={() => setShowEditConfirm(true)}>Confirm</Button>
+              </div>
+            ) : undefined}
           />
         )}
       </main>
 
       {/* ── Bottom navigation ── */}
-      <footer className="border-t border-zinc-200 dark:border-[#1e293b] bg-white/95 dark:bg-[#0A1628]/95 backdrop-blur sticky bottom-0">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          {isSimulation ? (
-            <div />
-          ) : (
-            <Button
-              variant="ghost"
-              onClick={navigateBack}
-              disabled={currentIndex === 0}
-              className="text-muted-foreground"
-            >
-              <span className="inline-flex items-center gap-2">
-                <FaIcon icon={faArrowLeft} className="h-3.5 w-3.5" />
-                Back
-              </span>
-            </Button>
-          )}
-          <span className="text-muted-foreground text-sm">
-            {currentIndex + 1} / {questions.length}
-          </span>
-          {currentIndex < questions.length - 1 ? (
-            <Button
-              onClick={navigateNext}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <span className="inline-flex items-center gap-2">
-                Next <FaIcon icon={faArrowRight} className="h-3.5 w-3.5" />
-              </span>
-            </Button>
-          ) : mode === "review" ? (
-            <Button
-              onClick={() => router.push("/")}
-              className="bg-slate-600 hover:bg-slate-700"
-            >
-              <span className="inline-flex items-center gap-2">
-                <FaIcon icon={faArrowLeft} className="h-3.5 w-3.5" /> Back to Dashboard
-              </span>
-            </Button>
-          ) : (
-            <Button
-              onClick={handleSubmit}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <span className="inline-flex items-center gap-2">
-                Submit Exam <FaIcon icon={faCircleCheck} className="h-4 w-4" />
-              </span>
-            </Button>
-          )}
+      {!(isInReviewEdit && reviewEditQuestion === null) && (
+        <footer className={`border-t sticky bottom-0 backdrop-blur ${
+          isGmatMode
+            ? "border-[#1e3a8a] bg-[#1e3a8a]"
+            : "border-zinc-200 dark:border-[#1e293b] bg-white/95 dark:bg-[#0A1628]/95"
+        }`}>
+          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            {isGmatMode ? (
+              <>
+                {/* Left: Pause | Save for Later */}
+                <div className="flex gap-4">
+                  <span className="text-white/70 text-xs cursor-default">⏸ Pause</span>
+                  <span className="text-white/70 text-xs cursor-pointer hover:text-white" onClick={() => router.push("/")}>⬇ Save for Later</span>
+                </div>
+                {/* Right: Back | counter | Next */}
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-white/30 text-white/80 hover:bg-white/10 text-xs"
+                    onClick={navigateBack}
+                    disabled={currentIndex === 0 || isInReviewEdit}
+                  >
+                    <FaIcon icon={faArrowLeft} className="h-3 w-3 mr-1" /> Back
+                  </Button>
+                  <span className="text-white/60 text-xs">{currentIndex + 1} / {questions.length}</span>
+                  {currentIndex < questions.length - 1 ? (
+                    <Button
+                      size="sm"
+                      className="bg-white text-blue-800 hover:bg-white/90 text-xs font-bold"
+                      onClick={navigateNext}
+                    >
+                      Next <FaIcon icon={faArrowRight} className="h-3 w-3 ml-1" />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="bg-white text-blue-800 hover:bg-white/90 text-xs font-bold"
+                      onClick={isInReviewEdit ? () => setShowEditConfirm(true) : handleSubmitClick}
+                    >
+                      {isInReviewEdit ? "Confirm ›" : "Submit ›"}
+                    </Button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                {isSimulation ? (
+                  <div />
+                ) : (
+                  <Button
+                    variant="ghost"
+                    onClick={navigateBack}
+                    disabled={currentIndex === 0}
+                    className="text-muted-foreground"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <FaIcon icon={faArrowLeft} className="h-3.5 w-3.5" />
+                      Back
+                    </span>
+                  </Button>
+                )}
+                <span className="text-muted-foreground text-sm">
+                  {currentIndex + 1} / {questions.length}
+                </span>
+                {currentIndex < questions.length - 1 ? (
+                  <Button
+                    onClick={navigateNext}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      Next <FaIcon icon={faArrowRight} className="h-3.5 w-3.5" />
+                    </span>
+                  </Button>
+                ) : mode === "review" ? (
+                  <Button
+                    onClick={() => router.push("/")}
+                    className="bg-slate-600 hover:bg-slate-700"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <FaIcon icon={faArrowLeft} className="h-3.5 w-3.5" /> Back to Dashboard
+                    </span>
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSubmitClick}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      Submit Exam <FaIcon icon={faCircleCheck} className="h-4 w-4" />
+                    </span>
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        </footer>
+      )}
+
+      {/* ── Edit Confirmation Dialog ── */}
+      {showEditConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-xl overflow-hidden w-80 shadow-2xl">
+            <div className="bg-[#1e3a8a] px-4 py-3 flex items-center justify-between">
+              <span className="text-white text-sm font-bold">Answer Edit Confirmation</span>
+              <button onClick={() => setShowEditConfirm(false)} className="text-white/60 hover:text-white text-lg leading-none">✕</button>
+            </div>
+            <div className="p-4">
+              <p className="text-sm text-zinc-800 mb-4 flex gap-2 items-start">
+                <span className="text-amber-500 text-base flex-shrink-0">⚠</span>
+                Do you want to change your answer to this question?
+              </p>
+              <button
+                onClick={confirmEdit}
+                className="w-full mb-2 py-2 text-sm font-semibold rounded border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100"
+              >
+                Yes, Change Answer
+              </button>
+              <button
+                onClick={cancelEdit}
+                className="w-full py-2 text-sm font-semibold rounded border border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100"
+              >
+                No, Keep Original Answer and Return to Question
+              </button>
+            </div>
+            <div className="px-4 py-2 bg-zinc-50 border-t border-zinc-100 text-xs text-zinc-500 font-medium">
+              Remaining Answer Edits: {3 - reviewEditCount}
+            </div>
+          </div>
         </div>
-      </footer>
+      )}
 
       {/* ── Triage Banner ── */}
       {showTriageBanner && !qs?.triageDismissed && (
@@ -1014,6 +1268,7 @@ interface QuestionPanelProps {
   currentPassage: import("@/types/gmat").Passage | null;
   groupPassages: import("@/types/gmat").Passage[];
   isMSRSplit?: boolean;
+  reviewBanner?: React.ReactNode;
 }
 
 function QuestionPanel({
@@ -1039,6 +1294,7 @@ function QuestionPanel({
   currentPassage,
   groupPassages,
   isMSRSplit,
+  reviewBanner,
 }: QuestionPanelProps) {
   const isDS = q.question_type === "Data Sufficiency";
   const isReview = mode === "review";
@@ -1046,6 +1302,8 @@ function QuestionPanel({
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
+      {/* Review banner (shown when editing a question in Review & Edit mode) */}
+      {reviewBanner}
       {/* Question header */}
       <div className="flex items-start gap-3 justify-between">
         <div className="flex items-center gap-2 flex-wrap">

@@ -359,7 +359,7 @@ export const useExamStore = create<ExamState>()(
 
       updateTimer: (elapsedMs: number) => {
         const state = get();
-        if (state.mode === 'timed') {
+        if (state.mode === 'timed' || state.mode === 'simulation') {
           set({ remainingTimeMs: Math.max(0, state.totalTimeMs - elapsedMs) });
         } else {
           set({ remainingTimeMs: elapsedMs });

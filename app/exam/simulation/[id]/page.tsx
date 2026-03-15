@@ -465,6 +465,14 @@ export default function SimulationExamPage({
   // Unanswered confirmation
   const [showUnansweredWarning, setShowUnansweredWarning] = useState(false);
 
+  // ── Section Review & Edit state ───────────────────────────
+  const [isInSectionReview, setIsInSectionReview] = useState(false);
+  const [sectionReviewCount, setSectionReviewCount] = useState(0);
+  const [sectionReviewQuestion, setSectionReviewQuestion] = useState<number | null>(null);
+  const [sectionReviewOriginalAnswer, setSectionReviewOriginalAnswer] = useState<string | null>(null);
+  const [showSectionEditConfirm, setShowSectionEditConfirm] = useState(false);
+  const [sectionEditedSet, setSectionEditedSet] = useState<Set<number>>(new Set());
+
   // ── Guard: redirect if simulationId doesn't match ─────────
   useEffect(() => {
     if (!simState.simulationId && status === "idle") {
@@ -639,12 +647,25 @@ export default function SimulationExamPage({
     const qs = questionStates[currentIndex];
     const isLastQ = currentIndex >= questions.length - 1;
 
+    const doEndSection = () => {
+      const timeLeft = sectionTimerStartedAt
+        ? SECTION_TIMER_SECS * 1000 - (Date.now() - new Date(sectionTimerStartedAt).getTime())
+        : 0;
+      if (timeLeft > 0) {
+        setIsInSectionReview(true);
+        setSectionReviewCount(0);
+        setSectionEditedSet(new Set());
+      } else {
+        handleSectionComplete();
+      }
+    };
+
     if (!qs?.selectedAnswer) {
       if (showUnansweredWarning) {
         // Confirmed skip
         setShowUnansweredWarning(false);
         if (isLastQ) {
-          handleSectionComplete();
+          doEndSection();
         } else {
           goToNext();
         }
@@ -656,7 +677,7 @@ export default function SimulationExamPage({
 
     setShowUnansweredWarning(false);
     if (isLastQ) {
-      handleSectionComplete();
+      doEndSection();
     } else {
       goToNext();
     }
@@ -665,14 +686,64 @@ export default function SimulationExamPage({
     currentIndex,
     questions.length,
     showUnansweredWarning,
+    sectionTimerStartedAt,
     goToNext,
   ]);
 
   // ── Section auto-submit (timer expires) ───────────────────
   const handleSectionTimerExpire = useCallback(() => {
     toast.info("Time's up! Section ended.");
+    setIsInSectionReview(false);
     handleSectionComplete();
   }, []);
+
+  // ── Section Review & Edit actions ─────────────────────────
+  const handleSubmitSectionClick = useCallback(() => {
+    const timeLeft = sectionTimerStartedAt
+      ? SECTION_TIMER_SECS * 1000 - (Date.now() - new Date(sectionTimerStartedAt).getTime())
+      : 0;
+    if (timeLeft > 0) {
+      setIsInSectionReview(true);
+      setSectionReviewCount(0);
+      setSectionEditedSet(new Set());
+    } else {
+      handleSectionComplete();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionTimerStartedAt]);
+
+  const startSectionEditQuestion = (i: number) => {
+    if (sectionReviewCount >= 3) {
+      toast.info("No edits remaining (max 3)");
+      return;
+    }
+    setSectionReviewOriginalAnswer(questionStates[i]?.selectedAnswer ?? null);
+    setSectionReviewQuestion(i);
+    setCurrentIndex(i);
+  };
+
+  const confirmSectionEdit = () => {
+    setSectionEditedSet((s) => new Set(s).add(sectionReviewQuestion!));
+    setSectionReviewCount((c) => c + 1);
+    setSectionReviewQuestion(null);
+    setSectionReviewOriginalAnswer(null);
+    setShowSectionEditConfirm(false);
+  };
+
+  const cancelSectionEdit = () => {
+    if (sectionReviewOriginalAnswer !== null) {
+      setQuestionStates((prev) => ({
+        ...prev,
+        [sectionReviewQuestion!]: {
+          ...prev[sectionReviewQuestion!],
+          selectedAnswer: sectionReviewOriginalAnswer,
+        },
+      }));
+    }
+    setSectionReviewQuestion(null);
+    setSectionReviewOriginalAnswer(null);
+    setShowSectionEditConfirm(false);
+  };
 
   // ── Section complete: save + show summary ─────────────────
   const handleSectionComplete = useCallback(async () => {
@@ -994,29 +1065,9 @@ export default function SimulationExamPage({
   return (
     <div className="min-h-screen flex flex-col bg-[#0A1628]">
       {/* ── Top Bar ── */}
-      <header className="border-b border-slate-800 bg-[#0A1628]/95 backdrop-blur sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-4">
-          {/* Progress dots — display only, not interactive for past questions */}
-          <div className="flex gap-1 flex-1 overflow-x-auto">
-            {questions.map((_, i) => {
-              const s = questionStates[i];
-              return (
-                <div
-                  key={i}
-                  className={`w-6 h-6 rounded text-xs font-bold flex-shrink-0 flex items-center justify-center ${
-                    i === currentIndex
-                      ? "bg-blue-500 text-white scale-110 ring-2 ring-blue-400/50"
-                      : s?.selectedAnswer
-                        ? "bg-slate-600 text-white"
-                        : "bg-slate-800 text-slate-400"
-                  }`}
-                >
-                  {i + 1}
-                </div>
-              );
-            })}
-          </div>
-
+      <header className="border-b border-[#1e3a8a] bg-[#1e3a8a] backdrop-blur sticky top-0 z-30">
+        <div className="max-w-6xl mx-auto px-4 py-2 flex items-center justify-between">
+          <span className="text-white/60 text-xs">Question {currentIndex + 1} of {questions.length}</span>
           {/* Section timer — center, prominent */}
           {sectionTimerStartedAt && (
             <SectionTimer
@@ -1025,19 +1076,77 @@ export default function SimulationExamPage({
               sectionLabel={`${SECTION_LABELS[currentSection!.sectionType].split(" ")[0]}`}
             />
           )}
-
-          {/* Simulation badge */}
-          <Badge
-            variant="outline"
-            className="border-indigo-500/30 text-indigo-400 text-xs flex-shrink-0"
+          <button
+            className="border border-white/40 text-white text-xs px-3 py-1 rounded hover:bg-white/10"
+            onClick={handleSubmitSectionClick}
           >
-            SIM · {currentSectionIndex + 1}/{sections.length}
-          </Badge>
+            Submit
+          </button>
         </div>
       </header>
 
+      {/* ── Section Review Center (replaces main+footer when in review overview) ── */}
+      {isInSectionReview && sectionReviewQuestion === null && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="bg-[#1a2942] px-6 py-2.5 flex items-center justify-between text-xs shrink-0">
+            <span className="text-white/60">Section Review Center</span>
+            <div className="flex items-center gap-4">
+              <span className="text-green-400 font-semibold">Remaining Edits: {3 - sectionReviewCount}</span>
+            </div>
+          </div>
+          <div className="bg-[#2563eb] px-6 py-2 shrink-0">
+            <span className="text-white text-xs font-semibold uppercase tracking-wide">
+              Review Center: {currentSection ? SECTION_LABELS[currentSection.sectionType] : "Section"}
+            </span>
+          </div>
+          <div className="flex-1 overflow-y-auto bg-white px-6 py-5">
+            <h3 className="text-base font-bold text-zinc-900 mb-1">Click on Question to Review &amp; Edit</h3>
+            <p className="text-xs text-zinc-500 mb-4">
+              You can review any question and edit up to 3 answers before submitting the section.
+            </p>
+            <table className="w-full border-collapse text-sm max-w-sm">
+              <thead>
+                <tr>
+                  <th className="text-left px-3 py-2 bg-zinc-50 border border-zinc-200 font-semibold text-zinc-600">Question</th>
+                  <th className="text-center px-3 py-2 bg-zinc-50 border border-zinc-200 font-semibold text-zinc-600">Bookmarked</th>
+                </tr>
+              </thead>
+              <tbody>
+                {questions.map((_, i) => {
+                  const qsi = questionStates[i];
+                  const edited = sectionEditedSet.has(i);
+                  return (
+                    <tr key={i} className="border-b border-zinc-100 hover:bg-zinc-50">
+                      <td className="px-3 py-2 border border-zinc-200">
+                        <button
+                          className="text-blue-600 underline font-medium text-sm"
+                          onClick={() => startSectionEditQuestion(i)}
+                        >
+                          {i + 1}{edited ? " ✏" : ""}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2 border border-zinc-200 text-center text-zinc-400">—</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="bg-[#2563eb] px-6 py-2.5 flex items-center justify-between shrink-0">
+            <span className="text-white/70 text-xs cursor-default">? Help</span>
+            <Button
+              size="sm"
+              className="bg-white text-blue-800 font-bold text-xs hover:bg-white/90"
+              onClick={() => { setIsInSectionReview(false); handleSectionComplete(); }}
+            >
+              End Section Review →
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* ── Main Content ── */}
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+      <main className={`flex-1 max-w-6xl mx-auto w-full px-4 py-6${isInSectionReview && sectionReviewQuestion === null ? " hidden" : ""}`}>
         {isRC ? (
           /* RC: Two-column — no passage map gate */
           <div className="grid grid-cols-[55%_45%] gap-6 h-[calc(100vh-120px)]">
@@ -1067,6 +1176,14 @@ export default function SimulationExamPage({
                 onTriageExpire={handleTriageExpire}
                 currentIndex={currentIndex}
                 totalQuestions={questions.length}
+                reviewBanner={isInSectionReview && sectionReviewQuestion !== null ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 flex items-center justify-between">
+                    <span className="text-amber-800 text-xs font-medium">
+                      ⚠ Review Mode — Editing Q{sectionReviewQuestion + 1} · {3 - sectionReviewCount} edits remaining · Select your answer then click Confirm
+                    </span>
+                    <Button size="sm" variant="outline" className="border-amber-400 text-amber-700 text-xs h-7 ml-3 flex-shrink-0" onClick={() => setShowSectionEditConfirm(true)}>Confirm</Button>
+                  </div>
+                ) : undefined}
               />
             </div>
           </div>
@@ -1081,76 +1198,122 @@ export default function SimulationExamPage({
             onTriageExpire={handleTriageExpire}
             currentIndex={currentIndex}
             totalQuestions={questions.length}
+            reviewBanner={isInSectionReview && sectionReviewQuestion !== null ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 flex items-center justify-between">
+                <span className="text-amber-800 text-xs font-medium">
+                  ⚠ Review Mode — Editing Q{sectionReviewQuestion + 1} · {3 - sectionReviewCount} edits remaining · Select your answer then click Confirm
+                </span>
+                <Button size="sm" variant="outline" className="border-amber-400 text-amber-700 text-xs h-7 ml-3 flex-shrink-0" onClick={() => setShowSectionEditConfirm(true)}>Confirm</Button>
+              </div>
+            ) : undefined}
           />
         )}
       </main>
 
       {/* ── Bottom Navigation ── */}
-      <footer className="border-t border-slate-800 bg-[#0A1628]/95 backdrop-blur sticky bottom-0">
-        <div className="max-w-6xl mx-auto px-4 py-3 space-y-2">
-          {/* Unanswered warning */}
-          {showUnansweredWarning && (
-            <div className="flex items-center justify-between bg-amber-950/60 border border-amber-500/30 rounded-lg px-4 py-2">
-              <span className="text-amber-300 text-sm">
-                You haven&apos;t selected an answer. Proceed anyway?
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-amber-400 hover:text-amber-200 text-xs h-7"
-                  onClick={() => setShowUnansweredWarning(false)}
-                >
-                  Go back
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-amber-600 hover:bg-amber-700 text-xs h-7"
-                  onClick={() => {
-                    setShowUnansweredWarning(false);
-                    if (currentIndex >= questions.length - 1)
-                      handleSectionComplete();
-                    else goToNext();
-                  }}
-                >
-                  Yes, skip
-                </Button>
+      {!(isInSectionReview && sectionReviewQuestion === null) && (
+        <footer className="border-t border-[#1e3a8a] bg-[#1e3a8a] sticky bottom-0">
+          <div className="max-w-6xl mx-auto px-4 py-3 space-y-2">
+            {/* Unanswered warning */}
+            {showUnansweredWarning && (
+              <div className="flex items-center justify-between bg-amber-950/60 border border-amber-500/30 rounded-lg px-4 py-2">
+                <span className="text-amber-300 text-sm">
+                  You haven&apos;t selected an answer. Proceed anyway?
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-amber-400 hover:text-amber-200 text-xs h-7"
+                    onClick={() => setShowUnansweredWarning(false)}
+                  >
+                    Go back
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-amber-600 hover:bg-amber-700 text-xs h-7"
+                    onClick={() => {
+                      setShowUnansweredWarning(false);
+                      if (currentIndex >= questions.length - 1) {
+                        handleSubmitSectionClick();
+                      } else {
+                        goToNext();
+                      }
+                    }}
+                  >
+                    Yes, skip
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="flex items-center justify-between">
-            {/* No back button in simulation mode */}
-            <div />
-            <span className="text-slate-500 text-sm">
-              {currentIndex + 1} / {questions.length}
-            </span>
-            <Button
-              onClick={handleNextClick}
-              disabled={saving}
-              className={
-                currentIndex >= questions.length - 1
-                  ? "bg-green-600 hover:bg-green-700 text-white"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
-              }
-            >
-              {saving
-                ? "Saving…"
-                : currentIndex >= questions.length - 1
-                  ? (
-                      <span className="inline-flex items-center gap-2">
-                        End Section <FaIcon icon={faCircleCheck} className="h-4 w-4" />
-                      </span>
-                    )
-                  : (
-                      <span className="inline-flex items-center gap-2">
-                        Next <FaIcon icon={faArrowRight} className="h-4 w-4" />
-                      </span>
-                    )}
-            </Button>
+            <div className="flex items-center justify-between">
+              {/* Left: Pause | Save for Later */}
+              <div className="flex gap-4">
+                <span className="text-white/70 text-xs cursor-default">⏸ Pause</span>
+                <span className="text-white/70 text-xs cursor-pointer hover:text-white" onClick={() => router.push("/")}>⬇ Save for Later</span>
+              </div>
+              <span className="text-white/60 text-xs">
+                {currentIndex + 1} / {questions.length}
+              </span>
+              <Button
+                onClick={isInSectionReview ? () => setShowSectionEditConfirm(true) : handleNextClick}
+                disabled={saving}
+                className="bg-white text-blue-800 hover:bg-white/90 text-xs font-bold"
+              >
+                {saving
+                  ? "Saving…"
+                  : isInSectionReview
+                    ? "Confirm ›"
+                    : currentIndex >= questions.length - 1
+                      ? (
+                          <span className="inline-flex items-center gap-2">
+                            End Section <FaIcon icon={faCircleCheck} className="h-4 w-4" />
+                          </span>
+                        )
+                      : (
+                          <span className="inline-flex items-center gap-2">
+                            Next <FaIcon icon={faArrowRight} className="h-4 w-4" />
+                          </span>
+                        )}
+              </Button>
+            </div>
+          </div>
+        </footer>
+      )}
+
+      {/* ── Section Edit Confirmation Dialog ── */}
+      {showSectionEditConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-xl overflow-hidden w-80 shadow-2xl">
+            <div className="bg-[#1e3a8a] px-4 py-3 flex items-center justify-between">
+              <span className="text-white text-sm font-bold">Answer Edit Confirmation</span>
+              <button onClick={() => setShowSectionEditConfirm(false)} className="text-white/60 hover:text-white text-lg leading-none">✕</button>
+            </div>
+            <div className="p-4">
+              <p className="text-sm text-zinc-800 mb-4 flex gap-2 items-start">
+                <span className="text-amber-500 text-base flex-shrink-0">⚠</span>
+                Do you want to change your answer to this question?
+              </p>
+              <button
+                onClick={confirmSectionEdit}
+                className="w-full mb-2 py-2 text-sm font-semibold rounded border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100"
+              >
+                Yes, Change Answer
+              </button>
+              <button
+                onClick={cancelSectionEdit}
+                className="w-full py-2 text-sm font-semibold rounded border border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100"
+              >
+                No, Keep Original Answer and Return to Question
+              </button>
+            </div>
+            <div className="px-4 py-2 bg-zinc-50 border-t border-zinc-100 text-xs text-zinc-500 font-medium">
+              Remaining Answer Edits: {3 - sectionReviewCount}
+            </div>
           </div>
         </div>
-      </footer>
+      )}
 
       {/* ── Triage Banner (no flag button in simulation) ── */}
       {showTriage && !qs?.triageDismissed && (
@@ -1182,6 +1345,7 @@ interface SimQuestionPanelProps {
   onTriageExpire: () => void;
   currentIndex: number;
   totalQuestions: number;
+  reviewBanner?: React.ReactNode;
 }
 
 function SimQuestionPanel({
@@ -1193,9 +1357,11 @@ function SimQuestionPanel({
   onSelect,
   onTriageExpire,
   currentIndex,
+  reviewBanner,
 }: SimQuestionPanelProps) {
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
+      {reviewBanner}
       {/* Question header — no flag button */}
       <div className="flex items-start gap-3 justify-between">
         <div className="flex items-center gap-2 flex-wrap">
