@@ -149,16 +149,16 @@ function choiceButtonClasses(
 
   if (showCorrect) {
     if (isCorrect) {
-      stateClasses = 'bg-green-500/20 border-green-500 text-green-200';
+      stateClasses = 'bg-green-500/15 border-green-500 text-green-800 dark:text-green-200';
     } else if (isSelected) {
-      stateClasses = 'bg-red-500/20 border-red-500 text-red-200';
+      stateClasses = 'bg-red-500/15 border-red-500 text-red-800 dark:text-red-200';
     } else {
-      stateClasses = 'bg-zinc-800/50 border-zinc-700 text-zinc-200 hover:bg-zinc-700/50';
+      stateClasses = 'bg-zinc-100 border-zinc-300 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800/50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50';
     }
   } else if (isSelected) {
-    stateClasses = 'bg-blue-500/20 border-blue-500 text-blue-200';
+    stateClasses = 'bg-blue-500/15 border-blue-500 text-blue-800 dark:text-blue-200';
   } else {
-    stateClasses = 'bg-zinc-800/50 border-zinc-700 text-zinc-200 hover:bg-zinc-700/50';
+    stateClasses = 'bg-zinc-100 border-zinc-300 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800/50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50';
   }
 
   return cn(
@@ -231,16 +231,16 @@ export function TwoPartRenderer({
     let stateClasses = '';
     if (showCorrect) {
       if (isCorrect) {
-        stateClasses = 'bg-green-500/20 border border-green-500';
+        stateClasses = 'bg-green-500/15 border border-green-500';
       } else if (isSelected) {
-        stateClasses = 'bg-red-500/20 border border-red-500';
+        stateClasses = 'bg-red-500/15 border border-red-500';
       } else {
-        stateClasses = 'hover:bg-zinc-700/50 border border-transparent';
+        stateClasses = 'hover:bg-zinc-100 dark:hover:bg-zinc-700/50 border border-transparent';
       }
     } else if (isSelected) {
-      stateClasses = 'bg-blue-500/20 border border-blue-500';
+      stateClasses = 'bg-blue-500/15 border border-blue-500';
     } else {
-      stateClasses = 'hover:bg-zinc-700/50 border border-transparent';
+      stateClasses = 'hover:bg-zinc-100 dark:hover:bg-zinc-700/50 border border-transparent';
     }
 
     return cn(
@@ -257,16 +257,16 @@ export function TwoPartRenderer({
     let stateClasses = '';
     if (showCorrect) {
       if (isCorrect) {
-        stateClasses = 'bg-green-500/20 border border-green-500';
+        stateClasses = 'bg-green-500/15 border border-green-500';
       } else if (isSelected) {
-        stateClasses = 'bg-red-500/20 border border-red-500';
+        stateClasses = 'bg-red-500/15 border border-red-500';
       } else {
-        stateClasses = 'hover:bg-zinc-700/50 border border-transparent';
+        stateClasses = 'hover:bg-zinc-100 dark:hover:bg-zinc-700/50 border border-transparent';
       }
     } else if (isSelected) {
-      stateClasses = 'bg-blue-500/20 border border-blue-500';
+      stateClasses = 'bg-blue-500/15 border border-blue-500';
     } else {
-      stateClasses = 'hover:bg-zinc-700/50 border border-transparent';
+      stateClasses = 'hover:bg-zinc-100 dark:hover:bg-zinc-700/50 border border-transparent';
     }
 
     return cn(
@@ -285,7 +285,7 @@ export function TwoPartRenderer({
     <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
       <Table>
         <TableHeader>
-          <TableRow className="border-zinc-200 dark:border-zinc-700 hover:bg-transparent">
+          <TableRow className="border-zinc-200 dark:border-zinc-700 hover:bg-transparent bg-zinc-50 dark:bg-zinc-800/50">
             <TableHead className="text-zinc-700 dark:text-zinc-300 font-semibold border-r border-zinc-200 dark:border-zinc-700 min-w-[200px]">
               Choice
             </TableHead>
@@ -383,16 +383,16 @@ export function TableAnalysisRenderer({
     let stateClasses = '';
     if (showCorrect) {
       if (isCorrect) {
-        stateClasses = 'bg-green-500/20 border-green-500 text-green-200';
+        stateClasses = 'bg-green-500/15 border-green-500 text-green-800 dark:text-green-200';
       } else if (isSelected) {
-        stateClasses = 'bg-red-500/20 border-red-500 text-red-200';
+        stateClasses = 'bg-red-500/15 border-red-500 text-red-800 dark:text-red-200';
       } else {
-        stateClasses = 'bg-zinc-800/50 border-zinc-700 text-zinc-200 hover:bg-zinc-700/50';
+        stateClasses = 'bg-zinc-100 border-zinc-300 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800/50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50';
       }
     } else if (isSelected) {
-      stateClasses = 'bg-blue-500/20 border-blue-500 text-blue-200';
+      stateClasses = 'bg-blue-500/15 border-blue-500 text-blue-800 dark:text-blue-200';
     } else {
-      stateClasses = 'bg-zinc-800/50 border-zinc-700 text-zinc-200 hover:bg-zinc-700/50';
+      stateClasses = 'bg-zinc-100 border-zinc-300 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800/50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50';
     }
 
     return cn(
@@ -406,11 +406,11 @@ export function TableAnalysisRenderer({
     <div className="flex flex-col gap-4">
       {/* Scrollable table — hidden when left panel already shows it */}
       {!hideSources && (
-        <div className="overflow-x-auto rounded-lg border border-zinc-700 max-h-72 overflow-y-auto bg-zinc-900">
+        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700 max-h-72 overflow-y-auto bg-white dark:bg-zinc-900">
           <Table>
             {headers.length > 0 && (
               <TableHeader>
-                <TableRow className="border-zinc-200 dark:border-zinc-700 hover:bg-transparent sticky top-0 bg-gray-50 dark:bg-zinc-900">
+                <TableRow className="border-zinc-200 dark:border-zinc-700 hover:bg-transparent sticky top-0 bg-zinc-50 dark:bg-zinc-900">
                   {headers.map((h, i) => (
                     <TableHead key={i} className="text-zinc-700 dark:text-zinc-300 font-semibold border-r last:border-r-0 border-zinc-200 dark:border-zinc-700 whitespace-normal">
                       {h}
@@ -459,11 +459,11 @@ export function PassageContent({ passage }: { passage: Passage }) {
   if (passage.passage_type === 'table_markdown') {
     const { headers, rows } = parseMarkdownTable(passage.passage_text);
     return (
-      <div className="overflow-x-auto rounded-lg border border-zinc-700 max-h-72 overflow-y-auto bg-zinc-900">
+      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700 max-h-[calc(100vh-12rem)] overflow-y-auto bg-white dark:bg-zinc-900">
         <Table>
           {headers.length > 0 && (
             <TableHeader>
-              <TableRow className="border-zinc-200 dark:border-zinc-700 hover:bg-transparent sticky top-0 bg-gray-50 dark:bg-zinc-900">
+              <TableRow className="border-zinc-200 dark:border-zinc-700 hover:bg-transparent sticky top-0 bg-zinc-50 dark:bg-zinc-900 z-10">
                 {headers.map((h, i) => (
                   <TableHead key={i} className="text-zinc-700 dark:text-zinc-300 font-semibold border-r last:border-r-0 border-zinc-200 dark:border-zinc-700 whitespace-normal">
                     {h}
@@ -476,7 +476,7 @@ export function PassageContent({ passage }: { passage: Passage }) {
             {rows.map((row, ri) => (
               <TableRow key={ri} className="border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
                 {row.map((cell, ci) => (
-                  <TableCell key={ci} className="text-zinc-800 dark:text-zinc-200 border-r last:border-r-0 border-zinc-200 dark:border-zinc-700 whitespace-normal py-2">
+                  <TableCell key={ci} className="text-zinc-800 dark:text-zinc-200 border-r last:border-r-0 border-zinc-200 dark:border-zinc-700 whitespace-normal py-2.5">
                     {cell}
                   </TableCell>
                 ))}
@@ -500,7 +500,7 @@ export function PassageContent({ passage }: { passage: Passage }) {
 
   // Default: 'text'
   return (
-    <p className="text-zinc-200 text-sm whitespace-pre-wrap leading-relaxed">
+    <p className="text-zinc-700 dark:text-zinc-200 text-sm whitespace-pre-wrap leading-relaxed">
       {passage.passage_text}
     </p>
   );
@@ -512,18 +512,18 @@ export function MultiSourceTabs({ passages }: { passages: Passage[] }) {
   const defaultTab = passages[0]?.id ?? '';
   return (
     <Tabs defaultValue={defaultTab} className="flex flex-col flex-1 min-h-0">
-      <TabsList className="shrink-0 bg-slate-900/80 border-b border-slate-700/50 h-auto rounded-none p-0 w-full justify-start">
+      <TabsList className="shrink-0 bg-zinc-100 dark:bg-slate-900/80 border-b border-zinc-200 dark:border-slate-700/50 h-auto rounded-none p-0 w-full justify-start">
         {passages.map((passage, index) => (
           <TabsTrigger
             key={passage.id}
             value={passage.id}
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-400 data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=inactive]:text-slate-400 text-[11px] font-semibold uppercase tracking-[0.12em] px-5 py-2.5 transition-colors"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-transparent data-[state=active]:text-zinc-900 dark:data-[state=active]:text-white data-[state=inactive]:text-zinc-500 dark:data-[state=inactive]:text-slate-400 text-[11px] font-semibold uppercase tracking-[0.12em] px-5 py-2.5 transition-colors"
           >
             {passage.tab_label || `Source ${index + 1}`}
           </TabsTrigger>
         ))}
       </TabsList>
-      <div className="flex-1 overflow-y-auto bg-[#0B1623]/50">
+      <div className="flex-1 overflow-y-auto">
         {passages.map((passage) => (
           <TabsContent key={passage.id} value={passage.id} className="mt-0 px-8 py-7">
             <PassageContent passage={passage} />
@@ -573,12 +573,12 @@ export function MultiSourceRenderer({
   return (
     <div className="flex flex-col gap-4">
       <Tabs defaultValue={defaultTab}>
-        <TabsList className="bg-zinc-800 border border-zinc-700 h-auto p-1 flex-wrap gap-1">
+        <TabsList className="bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 h-auto p-1 flex-wrap gap-1">
           {passages.map((passage, index) => (
             <TabsTrigger
               key={passage.id}
               value={passage.id}
-              className="text-sm data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-zinc-400"
+              className="text-sm data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-zinc-100 text-zinc-500 dark:text-zinc-400"
             >
               {passage.tab_label || `Source ${index + 1}`}
             </TabsTrigger>
@@ -629,7 +629,7 @@ export function GraphicsRenderer({
     <div className="flex flex-col gap-4">
       {/* Chart/image — hidden when left panel already shows it */}
       {!hideSources && (
-        <div className="flex justify-center p-4 bg-zinc-800/40 rounded-lg border border-zinc-700">
+        <div className="flex justify-center p-4 bg-zinc-100 dark:bg-zinc-800/40 rounded-lg border border-zinc-200 dark:border-zinc-700">
           <img
             src={passage.passage_text}
             alt="Chart"
