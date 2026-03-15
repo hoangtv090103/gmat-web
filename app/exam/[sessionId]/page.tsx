@@ -580,7 +580,7 @@ export default function ExamPage({
       )
         return;
       if (e.key === "ArrowRight" || e.key === "n") navigateNext();
-      if (!isSimulation && (e.key === "ArrowLeft" || e.key === "b")) navigateBack();
+      if (!isSimulation && mode !== "timed" && (e.key === "ArrowLeft" || e.key === "b")) navigateBack();
       if (!isSimulation && e.key === "f") toggleFlag();
       if (mode !== "review" && ["a", "b", "c", "d", "e"].includes(e.key.toLowerCase())) {
         const letter = e.key.toUpperCase();
@@ -803,7 +803,7 @@ export default function ExamPage({
               <Button
                 size="sm"
                 variant="outline"
-                className="border-white/40 text-white hover:bg-white/10 text-xs"
+                className="border-white text-white hover:bg-white/20 text-xs font-semibold"
                 onClick={handleSubmitClick}
               >
                 Submit
@@ -1113,17 +1113,19 @@ export default function ExamPage({
                   <span className="text-white/70 text-xs cursor-default">⏸ Pause</span>
                   <span className="text-white/70 text-xs cursor-pointer hover:text-white" onClick={() => router.push("/")}>⬇ Save for Later</span>
                 </div>
-                {/* Right: Back | counter | Next */}
+                {/* Right: counter | Next (no Back in timed mode — like real GMAT) */}
                 <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-white/30 text-white/80 hover:bg-white/10 text-xs"
-                    onClick={navigateBack}
-                    disabled={currentIndex === 0 || isInReviewEdit}
-                  >
-                    <FaIcon icon={faArrowLeft} className="h-3 w-3 mr-1" /> Back
-                  </Button>
+                  {mode === "simulation" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-white/60 text-white hover:bg-white/10 text-xs"
+                      onClick={navigateBack}
+                      disabled={currentIndex === 0 || isInReviewEdit}
+                    >
+                      <FaIcon icon={faArrowLeft} className="h-3 w-3 mr-1" /> Back
+                    </Button>
+                  )}
                   <span className="text-white/60 text-xs">{currentIndex + 1} / {questions.length}</span>
                   {currentIndex < questions.length - 1 ? (
                     <Button
