@@ -410,6 +410,9 @@ export default function ExamPage({
   // ── Timer Ring preference ────────────────────────────────────
   const [timerRingEnabled, setTimerRingEnabled] = useState(true);
 
+  // ── Missing Link Gate preference ─────────────────────────────
+  const [missingLinkEnabled, setMissingLinkEnabled] = useState(true);
+
   const {
     mode,
     questions,
@@ -506,6 +509,11 @@ export default function ExamPage({
   // ── Read Timer Ring preference ────────────────────────────
   useEffect(() => {
     setTimerRingEnabled(localStorage.getItem("gmat-show-timer-ring") !== "false");
+  }, []);
+
+  // ── Read Missing Link Gate preference ─────────────────────
+  useEffect(() => {
+    setMissingLinkEnabled(localStorage.getItem("gmat-missing-link-enabled") !== "false");
   }, []);
 
   // ── Global session timer ──────────────────────────────────
@@ -779,7 +787,7 @@ export default function ExamPage({
     qs?.questionTimerStartMs > 0 &&
     (isSimulation || (qs?.choicesUnlocked && qs?.passageMapComplete));
   const triageSecs = mode === "practice" ? 180 : 120;
-  const choicesLocked = !isSimulation && !qs?.choicesUnlocked;
+  const choicesLocked = !isSimulation && !qs?.choicesUnlocked && (needsMissingLink ? missingLinkEnabled : true);
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--exam-bg)]">
@@ -1036,6 +1044,7 @@ export default function ExamPage({
                   triageSecs={triageSecs}
                   isCR={needsMissingLink}
                   choicesLocked={false}
+                  missingLinkEnabled={missingLinkEnabled}
                   mlDraft={mlDraft}
                   setMlDraft={setMlDraft}
                   onUnlock={handleUnlockChoices}
@@ -1073,6 +1082,7 @@ export default function ExamPage({
             triageSecs={triageSecs}
             isCR={needsMissingLink}
             choicesLocked={choicesLocked}
+            missingLinkEnabled={missingLinkEnabled}
             mlDraft={mlDraft}
             setMlDraft={setMlDraft}
             onUnlock={handleUnlockChoices}
@@ -1256,6 +1266,7 @@ interface QuestionPanelProps {
   triageSecs: number;
   isCR: boolean;
   choicesLocked: boolean;
+  missingLinkEnabled: boolean;
   mlDraft: string;
   setMlDraft: (v: string) => void;
   onUnlock: () => void;
@@ -1282,6 +1293,7 @@ function QuestionPanel({
   triageSecs,
   isCR,
   choicesLocked,
+  missingLinkEnabled,
   mlDraft,
   setMlDraft,
   onUnlock,
@@ -1385,7 +1397,7 @@ function QuestionPanel({
       </div>
 
       {/* CR: Missing Link gate — disabled in simulation mode */}
-      {isCR && !isReview && !isSimulation && !qs?.choicesUnlocked && (
+      {isCR && !isReview && !isSimulation && !qs?.choicesUnlocked && missingLinkEnabled && (
         <MissingLinkGate
           mode={mode}
           value={mlDraft}
