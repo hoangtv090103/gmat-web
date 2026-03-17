@@ -37,6 +37,10 @@ function ExamSetupContent() {
     if (typeof window === "undefined") return true;
     return localStorage.getItem("gmat-show-timer-ring") !== "false";
   });
+  const [missingLinkEnabled, setMissingLinkEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("gmat-missing-link-enabled") !== "false";
+  });
 
   const initSession = useExamStore((s) => s.initSession);
 
@@ -273,6 +277,36 @@ function ExamSetupContent() {
                   />
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Missing Link Gate toggle (all modes except review) */}
+          {mode !== "review" && (
+            <div className="flex items-center justify-between p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/30">
+              <div>
+                <p className="text-sm font-medium">Missing Link Gate</p>
+                <p className="text-xs text-muted-foreground">
+                  CR questions require an inference before answer choices are revealed.
+                </p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={missingLinkEnabled}
+                onClick={() => {
+                  const next = !missingLinkEnabled;
+                  setMissingLinkEnabled(next);
+                  localStorage.setItem("gmat-missing-link-enabled", next.toString());
+                }}
+                className={`w-10 h-6 rounded-full transition-colors relative flex-shrink-0 ${
+                  missingLinkEnabled ? "bg-blue-500" : "bg-zinc-300 dark:bg-zinc-600"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${
+                    missingLinkEnabled ? "left-4" : "left-0.5"
+                  }`}
+                />
+              </button>
             </div>
           )}
 
