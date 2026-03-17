@@ -35,6 +35,7 @@ import {
   TrackingEventType,
   Passage,
 } from "@/types/gmat";
+import { renderTextWithTable } from "@/components/exam/DIRenderers";
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -1416,9 +1417,7 @@ function SimQuestionPanel({
             )}
           </div>
         ) : (
-          <p className="text-base leading-relaxed whitespace-pre-wrap">
-            {q.stem}
-          </p>
+          renderTextWithTable(q.stem)
         )}
       </div>
 

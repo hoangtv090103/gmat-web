@@ -30,6 +30,21 @@ function parseMarkdownTable(markdown: string): { headers: string[]; rows: string
   };
 }
 
+// ─── Boldface Text Renderer ───────────────────────────────────
+// Parses [Boldface N: ...] markers and renders the content bold.
+
+export function renderWithBoldface(text: string): React.ReactNode {
+  const parts = text.split(/(\[Boldface \d+: .+?\])/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) => {
+    const match = part.match(/^\[Boldface \d+: (.+)\]$/);
+    if (match) {
+      return <strong key={i} className="font-bold">{match[1]}</strong>;
+    }
+    return part || null;
+  });
+}
+
 // ─── Text + Embedded Table Renderer ──────────────────────────
 
 export function renderTextWithTable(text: string): React.ReactNode {
@@ -69,7 +84,7 @@ export function renderTextWithTable(text: string): React.ReactNode {
   }
 
   if (segments.every((s) => s.type === 'text')) {
-    return <p className="text-base leading-relaxed whitespace-pre-wrap">{text}</p>;
+    return <p className="text-base leading-relaxed whitespace-pre-wrap">{renderWithBoldface(text)}</p>;
   }
 
   return (
@@ -80,7 +95,7 @@ export function renderTextWithTable(text: string): React.ReactNode {
           if (!trimmed) return null;
           return (
             <p key={idx} className="text-base leading-relaxed whitespace-pre-wrap">
-              {trimmed}
+              {renderWithBoldface(trimmed)}
             </p>
           );
         }
