@@ -787,7 +787,7 @@ export default function ExamPage({
     qs?.questionTimerStartMs > 0 &&
     (isSimulation || (qs?.choicesUnlocked && qs?.passageMapComplete));
   const triageSecs = mode === "practice" ? 180 : 120;
-  const choicesLocked = !isSimulation && !qs?.choicesUnlocked && (needsMissingLink ? missingLinkEnabled : true);
+  const choicesLocked = !isSimulation && !qs?.choicesUnlocked && (!needsMissingLink || missingLinkEnabled);
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--exam-bg)]">
