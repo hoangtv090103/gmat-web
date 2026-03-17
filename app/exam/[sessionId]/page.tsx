@@ -407,6 +407,9 @@ export default function ExamPage({
   const [showEditConfirm, setShowEditConfirm] = useState(false);
   const [reviewEditedSet, setReviewEditedSet] = useState<Set<number>>(new Set());
 
+  // ── Unanswered warning ───────────────────────────────────────
+  const [showUnansweredWarning, setShowUnansweredWarning] = useState(false);
+
   // ── Timer Ring preference ────────────────────────────────────
   const [timerRingEnabled, setTimerRingEnabled] = useState(true);
 
@@ -578,6 +581,26 @@ export default function ExamPage({
     triageFiredRef.current = true;
   }, [qs?.selectedAnswer, triggerTriage, playBell]);
 
+  // ── Next with unanswered confirmation ────────────────────
+  const handleNextClick = useCallback(() => {
+    if (!qs?.selectedAnswer) {
+      if (showUnansweredWarning) {
+        setShowUnansweredWarning(false);
+        navigateNext();
+      } else {
+        setShowUnansweredWarning(true);
+      }
+      return;
+    }
+    setShowUnansweredWarning(false);
+    navigateNext();
+  }, [qs?.selectedAnswer, showUnansweredWarning, navigateNext]);
+
+  // Clear warning when question changes
+  useEffect(() => {
+    setShowUnansweredWarning(false);
+  }, [currentIndex]);
+
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -587,7 +610,7 @@ export default function ExamPage({
         e.target instanceof HTMLInputElement
       )
         return;
-      if (e.key === "ArrowRight" || e.key === "n") navigateNext();
+      if (e.key === "ArrowRight" || e.key === "n") handleNextClick();
       if (!isSimulation && mode !== "timed" && (e.key === "ArrowLeft" || e.key === "b")) navigateBack();
       if (!isSimulation && e.key === "f") toggleFlag();
       if (mode !== "review" && ["a", "b", "c", "d", "e"].includes(e.key.toLowerCase())) {
@@ -598,7 +621,7 @@ export default function ExamPage({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isActive, isSimulation, qs, navigateNext, navigateBack, toggleFlag, selectAnswer]);
+  }, [isActive, isSimulation, qs, handleNextClick, navigateBack, toggleFlag, selectAnswer]);
 
   const handleSubmit = async () => {
     submitExam();
@@ -1115,7 +1138,33 @@ export default function ExamPage({
             ? "border-[#1e3a8a] bg-[#1e3a8a]"
             : "border-zinc-200 dark:border-[#1e293b] bg-white/95 dark:bg-[#0A1628]/95"
         }`}>
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="max-w-6xl mx-auto px-4 py-3 space-y-2">
+            {/* Unanswered warning */}
+            {showUnansweredWarning && (
+              <div className="flex items-center justify-between bg-amber-950/60 border border-amber-500/30 rounded-lg px-4 py-2">
+                <span className={`text-amber-300 text-sm`}>
+                  You haven&apos;t selected an answer. Proceed anyway?
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-amber-400 hover:text-amber-200 text-xs h-7"
+                    onClick={() => setShowUnansweredWarning(false)}
+                  >
+                    Go back
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-amber-600 hover:bg-amber-700 text-xs h-7"
+                    onClick={() => { setShowUnansweredWarning(false); navigateNext(); }}
+                  >
+                    Skip anyway
+                  </Button>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
             {isGmatMode ? (
               <>
                 {/* Left: Pause | Save for Later */}
@@ -1141,7 +1190,7 @@ export default function ExamPage({
                     <Button
                       size="sm"
                       className="bg-white text-blue-800 hover:bg-white/90 text-xs font-bold"
-                      onClick={navigateNext}
+                      onClick={handleNextClick}
                     >
                       Next <FaIcon icon={faArrowRight} className="h-3 w-3 ml-1" />
                     </Button>
@@ -1178,7 +1227,7 @@ export default function ExamPage({
                 </span>
                 {currentIndex < questions.length - 1 ? (
                   <Button
-                    onClick={navigateNext}
+                    onClick={handleNextClick}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     <span className="inline-flex items-center gap-2">
@@ -1206,6 +1255,7 @@ export default function ExamPage({
                 )}
               </>
             )}
+            </div>
           </div>
         </footer>
       )}
