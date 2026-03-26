@@ -54,7 +54,7 @@ function BreakRing({ startedAt, onExpire }: BreakRingProps) {
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - frac);
 
-  const strokeColor = remaining <= 60 ? '#EF4444' : remaining <= 120 ? '#F59E0B' : '#6366F1';
+  const strokeColor = remaining <= 60 ? '#EF4444' : remaining <= 120 ? '#F59E0B' : '#2563EB';
 
   return (
     <div className="relative w-64 h-64">
@@ -88,14 +88,14 @@ function ResumeCountdown({ label, sectionNumber, onDone }: { label: string; sect
   }, [count]);
 
   return (
-    <div className="min-h-screen bg-[#0A1628] flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center">
       <div className="text-center space-y-4">
-        <p className="text-slate-400 text-sm uppercase tracking-widest">Section {sectionNumber}</p>
-        <h2 className="text-2xl font-semibold text-white">{label}</h2>
-        <div className="text-7xl font-bold text-indigo-400 tabular-nums my-6">
+        <p className="text-muted-foreground text-sm uppercase tracking-widest">Section {sectionNumber}</p>
+        <h2 className="text-2xl font-semibold">{label}</h2>
+        <div className="text-7xl font-bold text-blue-500 tabular-nums my-6">
           {count > 0 ? count : <FaIcon icon={faArrowRight} className="h-12 w-12" />}
         </div>
-        <p className="text-slate-500 text-sm">Starting now…</p>
+        <p className="text-muted-foreground text-sm">Starting now…</p>
       </div>
     </div>
   );
@@ -108,7 +108,7 @@ export default function BreakPage({ params }: { params: Promise<{ id: string }> 
   const router = useRouter();
 
   const simState = useSimulationStore();
-  const { status, currentSectionIndex, sections, advanceToNextSection, endBreak } = simState;
+  const { status, currentSectionIndex, sections, advanceToNextSection } = simState;
 
   const [breakStartedAt] = useState(() => new Date().toISOString());
   const [showConfirm, setShowConfirm] = useState(false);
@@ -137,7 +137,6 @@ export default function BreakPage({ params }: { params: Promise<{ id: string }> 
 
   const handleResumeCountdownDone = () => {
     advanceToNextSection();
-    endBreak();
     router.replace(`/exam/simulation/${simulationId}`);
   };
 
@@ -152,11 +151,11 @@ export default function BreakPage({ params }: { params: Promise<{ id: string }> 
   }
 
   return (
-    <div className="min-h-screen bg-[#0A1628] flex flex-col items-center justify-center gap-8 px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center gap-8 px-4">
       {/* Header */}
       <div className="text-center space-y-1">
-        <p className="text-sm text-indigo-400 font-medium uppercase tracking-widest">Optional Break</p>
-        <h1 className="text-2xl font-semibold text-white">You are on break.</h1>
+        <p className="text-sm text-blue-600 font-medium uppercase tracking-widest">Optional Break</p>
+        <h1 className="text-2xl font-semibold">You are on break.</h1>
       </div>
 
       {/* Ring */}
@@ -164,11 +163,11 @@ export default function BreakPage({ params }: { params: Promise<{ id: string }> 
 
       {/* Info */}
       <div className="max-w-sm text-center space-y-2">
-        <p className="text-slate-300 text-sm leading-relaxed">
+        <p className="text-sm leading-relaxed">
           Section {nextSectionIndex + 1} &mdash; <span className="text-white font-medium">{nextLabel}</span> &mdash; begins
           automatically when the timer ends.
         </p>
-        <p className="text-slate-500 text-xs">
+        <p className="text-muted-foreground text-xs">
           Your 45-minute section timer starts fresh after the break ends.
         </p>
       </div>
@@ -176,7 +175,6 @@ export default function BreakPage({ params }: { params: Promise<{ id: string }> 
       {/* End break early */}
       <Button
         variant="outline"
-        className="border-slate-600 text-slate-300 hover:bg-slate-800"
         onClick={() => setShowConfirm(true)}
       >
         End Break Early
@@ -184,7 +182,7 @@ export default function BreakPage({ params }: { params: Promise<{ id: string }> 
 
       {/* Confirmation dialog */}
       <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <DialogContent className="bg-gray-900 border-gray-700 text-white">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>End break early?</DialogTitle>
             <DialogDescription className="text-slate-400">
@@ -192,10 +190,10 @@ export default function BreakPage({ params }: { params: Promise<{ id: string }> 
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" className="border-gray-600 text-gray-300" onClick={() => setShowConfirm(false)}>
+            <Button variant="outline" onClick={() => setShowConfirm(false)}>
               Stay on break
             </Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-500" onClick={handleEndBreakConfirmed}>
+            <Button onClick={handleEndBreakConfirmed}>
               Yes, start Section {nextSectionIndex + 1}
             </Button>
           </DialogFooter>

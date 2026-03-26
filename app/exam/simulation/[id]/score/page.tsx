@@ -66,29 +66,29 @@ function SectionCard({ data, order }: { data: SectionCardData; order: number }) 
               Section {order}
             </Badge>
           </div>
-          <h3 className="font-semibold text-white">{SECTION_LABELS[data.sectionType]}</h3>
+          <h3 className="font-semibold">{SECTION_LABELS[data.sectionType]}</h3>
         </div>
         <div className="text-right">
           <div className={`text-3xl font-bold ${color.text}`}>{data.scaledScore}</div>
-          <div className="text-xs text-slate-400">out of 90</div>
+          <div className="text-xs text-muted-foreground">out of 90</div>
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-sm">
         <div>
-          <div className="text-slate-400 text-xs mb-0.5">Accuracy</div>
-          <div className="text-white font-medium">{accuracy}%</div>
+          <div className="text-muted-foreground text-xs mb-0.5">Accuracy</div>
+          <div className="font-medium">{accuracy}%</div>
           <div className="text-slate-500 text-xs">{data.rawCorrect}/{data.rawTotal}</div>
         </div>
         <div>
-          <div className="text-slate-400 text-xs mb-0.5">Time used</div>
+          <div className="text-muted-foreground text-xs mb-0.5">Time used</div>
           <div className="text-white font-mono font-medium">
             {timeMins}:{timeSecs.toString().padStart(2, '0')}
           </div>
         </div>
         <div>
-          <div className="text-slate-400 text-xs mb-0.5">Skipped</div>
-          <div className={`font-medium ${data.questionsSkipped > 0 ? 'text-amber-400' : 'text-white'}`}>
+          <div className="text-muted-foreground text-xs mb-0.5">Skipped</div>
+          <div className={`font-medium ${data.questionsSkipped > 0 ? 'text-amber-500' : ''}`}>
             {data.questionsSkipped}
           </div>
         </div>
@@ -220,19 +220,19 @@ export default function ScoreReportPage({ params }: { params: Promise<{ id: stri
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0A1628] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0A1628] text-white">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="border-b border-slate-800 px-6 py-4">
+      <div className="border-b px-6 py-4">
         <div className="max-w-2xl mx-auto">
-          <p className="text-xs text-slate-500 uppercase tracking-widest mb-1">GMAT Focus Edition</p>
-          <h1 className="text-lg font-semibold text-white">Simulated Score Report</h1>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">GMAT Focus Edition</p>
+          <h1 className="text-lg font-semibold">Simulated Score Report</h1>
         </div>
       </div>
 
@@ -244,28 +244,28 @@ export default function ScoreReportPage({ params }: { params: Promise<{ id: stri
             {totalScore}
           </div>
           <div className="flex items-center justify-center gap-3 text-sm">
-            <span className="text-slate-400">Target: {TARGET_SCORE}</span>
-            <span className="text-slate-600">·</span>
+            <span className="text-muted-foreground">Target: {TARGET_SCORE}</span>
+            <span className="text-muted-foreground">·</span>
             <span className={`flex items-center gap-1 font-medium ${gapColorClass}`}>
               <FaIcon icon={gapIcon} className="w-4 h-4" />
               {gap >= 0 ? `+${gap}` : gap} points
             </span>
           </div>
           <div className="flex items-center justify-center gap-2">
-            <div className="w-48 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div className="w-48 h-1.5 bg-muted rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${scoreColorClass.replace('text-', 'bg-')}`}
                 style={{ width: `${Math.min(100, ((totalScore - 205) / 600) * 100)}%` }}
               />
             </div>
-            <span className="text-xs text-slate-500">205–805</span>
+            <span className="text-xs text-muted-foreground">205–805</span>
           </div>
         </div>
 
         {/* Section breakdown */}
         {orderedCards.length > 0 && (
           <div className="space-y-3">
-            <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wider">Section Scores</h2>
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Section Scores</h2>
             {orderedCards.map((card, i) => (
               <SectionCard
                 key={card.sectionType}
@@ -279,9 +279,9 @@ export default function ScoreReportPage({ params }: { params: Promise<{ id: stri
         )}
 
         {/* Disclaimer */}
-        <div className="p-4 bg-slate-800/30 border border-slate-700/50 rounded-xl">
-          <p className="text-xs text-slate-400 leading-relaxed text-center">
-            <span className="text-slate-300 font-medium">Estimated score</span> based on raw accuracy.
+        <div className="p-4 bg-muted/30 border rounded-xl">
+          <p className="text-xs text-muted-foreground leading-relaxed text-center">
+            <span className="font-medium">Estimated score</span> based on raw accuracy.
             Not equivalent to an official GMAT score. GMAC uses a proprietary adaptive algorithm
             that may produce different results.
           </p>
@@ -290,7 +290,7 @@ export default function ScoreReportPage({ params }: { params: Promise<{ id: stri
         {/* CTAs */}
         <div className="space-y-3">
           <Button
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-11 font-medium"
+            className="w-full h-11 font-medium"
             onClick={handleReview}
             disabled={!sectionCards[0]?.sessionId && !simState.sectionResults[0]?.sessionId}
           >
@@ -299,7 +299,7 @@ export default function ScoreReportPage({ params }: { params: Promise<{ id: stri
           </Button>
           <Button
             variant="outline"
-            className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 h-11"
+            className="w-full h-11"
             onClick={handleReturnDashboard}
           >
             <FaIcon icon={faArrowLeft} className="w-4 h-4 mr-2" />
@@ -309,7 +309,7 @@ export default function ScoreReportPage({ params }: { params: Promise<{ id: stri
 
         {/* Date */}
         {exam?.completed_at && (
-          <p className="text-center text-xs text-slate-600">
+          <p className="text-center text-xs text-muted-foreground">
             Completed {new Date(exam.completed_at).toLocaleDateString('en-US', {
               year: 'numeric', month: 'long', day: 'numeric',
               hour: '2-digit', minute: '2-digit',

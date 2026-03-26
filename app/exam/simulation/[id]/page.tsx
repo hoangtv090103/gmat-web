@@ -21,6 +21,7 @@ import {
   updateSimulationSection,
   updateSimulationExam,
   getPassagesBySetId,
+  getPassagesByGroupId,
 } from "@/lib/db";
 import {
   useSimulationStore,
@@ -35,7 +36,7 @@ import {
   TrackingEventType,
   Passage,
 } from "@/types/gmat";
-import { renderTextWithTable } from "@/components/exam/DIRenderers";
+import { renderTextWithTable, PassageContent, MultiSourceTabs } from "@/components/exam/DIRenderers";
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -252,53 +253,53 @@ function SectionSummary({
   const remSecs = Math.floor(Math.max(0, timeRemaining) % 60);
 
   return (
-    <div className="min-h-screen bg-[#0A1628] flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="max-w-md w-full space-y-6">
         <div className="text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full mb-4">
-            <span className="text-emerald-400 text-sm font-medium">
+            <span className="text-emerald-600 text-sm font-medium">
               Section {sectionIndex + 1} of {totalSections} — Complete
             </span>
           </div>
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold">
             {SECTION_LABELS[sectionResult.sectionType]}
           </h1>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
-            <div className="text-2xl font-bold text-white">
+          <div className="border rounded-xl p-4 text-center">
+            <div className="text-2xl font-bold">
               {sectionResult.rawCorrect}
-              <span className="text-lg text-slate-400">
+              <span className="text-lg text-muted-foreground">
                 /{sectionResult.rawTotal}
               </span>
             </div>
-            <div className="text-xs text-slate-400 mt-1">
+            <div className="text-xs text-muted-foreground mt-1">
               Questions answered
             </div>
           </div>
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
-            <div className="text-2xl font-bold text-amber-400">
+          <div className="border rounded-xl p-4 text-center">
+            <div className="text-2xl font-bold text-amber-500">
               {sectionResult.questionsSkipped}
             </div>
-            <div className="text-xs text-slate-400 mt-1">Skipped</div>
+            <div className="text-xs text-muted-foreground mt-1">Skipped</div>
           </div>
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
-            <div className="text-lg font-bold text-white font-mono">
+          <div className="border rounded-xl p-4 text-center">
+            <div className="text-lg font-bold font-mono">
               {timeMins}:{timeSecs.toString().padStart(2, "0")}
             </div>
-            <div className="text-xs text-slate-400 mt-1">Time used</div>
+            <div className="text-xs text-muted-foreground mt-1">Time used</div>
           </div>
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
-            <div className="text-lg font-bold text-emerald-400 font-mono">
+          <div className="border rounded-xl p-4 text-center">
+            <div className="text-lg font-bold text-emerald-600 font-mono">
               {remMins}:{remSecs.toString().padStart(2, "0")}
             </div>
-            <div className="text-xs text-slate-400 mt-1">Time remaining</div>
+            <div className="text-xs text-muted-foreground mt-1">Time remaining</div>
           </div>
         </div>
 
-        <p className="text-xs text-center text-slate-500">
+        <p className="text-xs text-center text-muted-foreground">
           No per-question review available here — access full review after the
           exam.
         </p>
@@ -306,7 +307,7 @@ function SectionSummary({
         {/* Actions */}
         {isLastSection ? (
           <Button
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-11 font-semibold"
+            className="w-full h-11 font-semibold"
             onClick={onViewScore}
           >
             <span className="inline-flex items-center gap-2">
@@ -318,13 +319,13 @@ function SectionSummary({
             {breaksEnabled ? (
               <>
                 <Button
-                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-11"
+                  className="w-full h-11"
                   onClick={onTakeBreak}
                 >
                   Take a 10-minute break
                 </Button>
                 <button
-                  className="w-full text-sm text-slate-400 hover:text-slate-200 transition-colors"
+                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
                   onClick={onSkipBreak}
                 >
                   <span className="inline-flex items-center gap-2 justify-center">
@@ -335,7 +336,7 @@ function SectionSummary({
               </>
             ) : (
               <Button
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-11"
+                className="w-full h-11"
                 onClick={onBeginNextSection}
               >
                 <span className="inline-flex items-center gap-2">
@@ -376,16 +377,16 @@ function SectionCountdown({
   }, [count]);
 
   return (
-    <div className="min-h-screen bg-[#0A1628] flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center">
       <div className="text-center space-y-4">
-        <p className="text-slate-400 text-sm uppercase tracking-widest">
+        <p className="text-muted-foreground text-sm uppercase tracking-widest">
           Section {sectionNumber}
         </p>
-        <h2 className="text-2xl font-semibold text-white">{label}</h2>
-        <div className="text-7xl font-bold text-indigo-400 tabular-nums my-6">
+        <h2 className="text-2xl font-semibold">{label}</h2>
+        <div className="text-7xl font-bold text-blue-600 tabular-nums my-6">
           {count > 0 ? count : <FaIcon icon={faArrowRight} className="h-12 w-12" />}
         </div>
-        <p className="text-slate-500 text-sm">Starting now…</p>
+        <p className="text-muted-foreground text-sm">Starting now…</p>
       </div>
     </div>
   );
@@ -441,6 +442,7 @@ export default function SimulationExamPage({
   // ── Local state ───────────────────────────────────────────
   const [questions, setQuestions] = useState<Question[]>([]);
   const [passages, setPassages] = useState<Passage[]>([]);
+  const [groupPassages, setGroupPassages] = useState<Passage[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [questionStates, setQuestionStates] = useState<
     Record<number, LocalQuestionState>
@@ -909,6 +911,16 @@ export default function SimulationExamPage({
     [currentIndex, sessionStartMs],
   );
 
+  // ── Load grouped passages for MSR questions ───────────────
+  useEffect(() => {
+    const q = questions[currentIndex];
+    if (!q?.passage_group_id) {
+      setGroupPassages([]);
+      return;
+    }
+    getPassagesByGroupId(q.passage_group_id).then(setGroupPassages).catch(() => {});
+  }, [questions, currentIndex]);
+
   // ── Keyboard shortcuts ─────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -1002,21 +1014,20 @@ export default function SimulationExamPage({
   // Show error state with retry if initialization failed
   if (initError && !loading) {
     return (
-      <div className="min-h-screen bg-[#0A1628] flex items-center justify-center px-4">
+      <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center space-y-4 max-w-sm">
           <div className="flex justify-center">
-            <FaIcon icon={faTriangleExclamation} className="h-10 w-10 text-amber-400" />
+            <FaIcon icon={faTriangleExclamation} className="h-10 w-10 text-amber-500" />
           </div>
-          <h2 className="text-white font-semibold text-lg">
+          <h2 className="font-semibold text-lg">
             Failed to load section
           </h2>
-          <p className="text-slate-400 text-sm">{initError}</p>
+          <p className="text-muted-foreground text-sm">{initError}</p>
           <Button
             onClick={() => {
               setInitError(null);
               initializeSection();
             }}
-            className="bg-indigo-600 hover:bg-indigo-500"
           >
             Retry
           </Button>
@@ -1025,12 +1036,12 @@ export default function SimulationExamPage({
     );
   }
 
-  if (loading || (status === "countdown" && questions.length === 0)) {
+  if (loading || status === "countdown") {
     return (
-      <div className="min-h-screen bg-[#0A1628] flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-slate-400 text-sm">Loading section…</p>
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-muted-foreground text-sm">Loading section…</p>
         </div>
       </div>
     );
@@ -1054,13 +1065,11 @@ export default function SimulationExamPage({
   const isDS = currentQ.question_type === "Data Sufficiency";
   const isRC =
     currentQ.question_type === "Reading Comprehension" || !!currentQ.passage_id;
-  // Resolve passage text from the passages table (loaded during initialization)
-  const passageText = (() => {
-    if (!currentQ?.passage_id) return "";
-    return (
-      passages.find((p) => p.id === currentQ.passage_id)?.passage_text || ""
-    );
-  })();
+  // Resolve passage from the passages table (loaded during initialization)
+  const currentPassage = currentQ?.passage_id
+    ? passages.find((p) => p.id === currentQ.passage_id) ?? null
+    : null;
+  const passageText = currentPassage?.passage_text || "";
   const showTimerRing = qs?.questionTimerStartMs > 0;
 
   return (
@@ -1152,19 +1161,23 @@ export default function SimulationExamPage({
           /* RC: Two-column — no passage map gate */
           <div className="grid grid-cols-[55%_45%] gap-6 h-[calc(100vh-120px)]">
             <div className="overflow-y-auto pr-2">
-              {(passageText || currentQ.stem)
-                .split(/\n\n+/)
-                .filter((p) => p.trim())
-                .map((para, i) => (
-                  <div key={i} className="flex gap-3 mb-4">
-                    <span className="text-blue-400 font-bold text-sm flex-shrink-0 mt-0.5">
-                      P{i + 1}
-                    </span>
-                    <p className="text-sm leading-relaxed text-slate-200">
-                      {para}
-                    </p>
-                  </div>
-                ))}
+              {currentPassage && currentPassage.passage_type !== 'text' ? (
+                <PassageContent passage={currentPassage} />
+              ) : (
+                (passageText || currentQ.stem)
+                  .split(/\n\n+/)
+                  .filter((p) => p.trim())
+                  .map((para, i) => (
+                    <div key={i} className="flex gap-3 mb-4">
+                      <span className="text-blue-400 font-bold text-sm flex-shrink-0 mt-0.5">
+                        P{i + 1}
+                      </span>
+                      <p className="text-sm leading-relaxed text-slate-200">
+                        {para}
+                      </p>
+                    </div>
+                  ))
+              )}
             </div>
             <div className="overflow-y-auto">
               <SimQuestionPanel
@@ -1361,7 +1374,7 @@ function SimQuestionPanel({
   reviewBanner,
 }: SimQuestionPanelProps) {
   return (
-    <div className="space-y-4 max-w-3xl mx-auto">
+    <div className="space-y-4 max-w-3xl mx-auto text-slate-100">
       {reviewBanner}
       {/* Question header — no flag button */}
       <div className="flex items-start gap-3 justify-between">
@@ -1398,13 +1411,13 @@ function SimQuestionPanel({
       <div className="bg-slate-800/40 rounded-xl p-5 border border-slate-700/50">
         {isDS && (q.statement1 || q.statement2) ? (
           <div className="space-y-4">
-            <p className="text-base leading-relaxed">{q.stem}</p>
+            <p className="text-base leading-relaxed text-slate-100">{q.stem}</p>
             {q.statement1 && (
               <div className="pl-4 border-l-2 border-blue-500/40">
                 <span className="text-blue-400 font-semibold text-sm">
                   (1){" "}
                 </span>
-                <span className="text-sm leading-relaxed">{q.statement1}</span>
+                <span className="text-sm leading-relaxed text-slate-200">{q.statement1}</span>
               </div>
             )}
             {q.statement2 && (
@@ -1412,7 +1425,7 @@ function SimQuestionPanel({
                 <span className="text-blue-400 font-semibold text-sm">
                   (2){" "}
                 </span>
-                <span className="text-sm leading-relaxed">{q.statement2}</span>
+                <span className="text-sm leading-relaxed text-slate-200">{q.statement2}</span>
               </div>
             )}
           </div>
@@ -1444,7 +1457,7 @@ function SimQuestionPanel({
               >
                 {letter}
               </span>
-              <span className="text-sm leading-relaxed pt-0.5">{text}</span>
+              <span className="text-sm leading-relaxed pt-0.5 text-slate-100">{text}</span>
             </button>
           );
         })}

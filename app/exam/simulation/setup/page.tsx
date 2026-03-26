@@ -203,37 +203,37 @@ export default function SimulationSetupPage() {
 
   if (countdown !== null) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-6">
-          <div className="text-8xl font-bold text-white tabular-nums animate-pulse">
+          <div className="text-8xl font-bold tabular-nums animate-pulse">
             {countdown}
           </div>
-          <p className="text-gray-400 text-xl">Preparing your exam…</p>
-          <p className="text-gray-500 text-sm">GMAT Focus Edition — Exam Simulation</p>
+          <p className="text-muted-foreground text-xl">Preparing your exam…</p>
+          <p className="text-muted-foreground text-sm">GMAT Focus Edition — Exam Simulation</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="border-b border-gray-800 px-6 py-4">
+      <div className="border-b px-6 py-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-white">Exam Simulation Setup</h1>
-            <p className="text-sm text-gray-400">GMAT Focus Edition · Full Mock Exam</p>
+            <h1 className="text-lg font-semibold">Exam Simulation Setup</h1>
+            <p className="text-sm text-muted-foreground">GMAT Focus Edition · Full Mock Exam</p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-400">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             {[1, 2, 3].map((n) => (
               <div key={n} className="flex items-center gap-1.5">
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
                     step === n
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-blue-600 text-white'
                       : step > n
                       ? 'bg-green-600/80 text-white'
-                      : 'bg-gray-700 text-gray-400'
+                      : 'bg-muted text-muted-foreground'
                   }`}
                 >
                   {step > n ? (
@@ -242,7 +242,7 @@ export default function SimulationSetupPage() {
                     n
                   )}
                 </div>
-                {n < 3 && <div className={`w-8 h-px ${step > n ? 'bg-green-600/80' : 'bg-gray-700'}`} />}
+                {n < 3 && <div className={`w-8 h-px ${step > n ? 'bg-green-600/80' : 'bg-border'}`} />}
               </div>
             ))}
           </div>
@@ -256,7 +256,7 @@ export default function SimulationSetupPage() {
           <>
             <div>
               <h2 className="text-xl font-semibold text-white mb-1">Step 1 — Section Order</h2>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 Drag the sections to choose your preferred order. Default: Quant{' '}
                 <FaIcon icon={faArrowRight} className="mx-1 inline-block h-3 w-3 text-slate-400" /> Verbal{' '}
                 <FaIcon icon={faArrowRight} className="mx-1 inline-block h-3 w-3 text-slate-400" /> DI.
@@ -277,7 +277,7 @@ export default function SimulationSetupPage() {
                   } ${draggedIndex === index ? 'opacity-50' : 'opacity-100'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <FaIcon icon={faGripVertical} className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                    <FaIcon icon={faGripVertical} className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                     <div
                       className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-medium border ${SECTION_BADGE_COLORS[type]}`}
                     >
@@ -286,11 +286,11 @@ export default function SimulationSetupPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-white">{SECTION_LABELS[type]}</span>
-                        <Badge variant="outline" className="text-xs text-gray-400 border-gray-600">
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
                           Section {index + 1}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
+                      <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <FaIcon icon={faBookOpen} className="w-3 h-3" />
                           {SECTION_RECOMMENDED_QUESTIONS[type]} questions
@@ -307,14 +307,14 @@ export default function SimulationSetupPage() {
                         disabled={index === 0}
                         className="p-1 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       >
-                        <FaIcon icon={faChevronUp} className="w-4 h-4 text-gray-300" />
+                        <FaIcon icon={faChevronUp} className="w-4 h-4 text-muted-foreground" />
                       </button>
                       <button
                         onClick={() => moveSection(index, 'down')}
                         disabled={index === sectionOrder.length - 1}
-                        className="p-1 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        className="p-1 rounded hover:bg-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       >
-                        <FaIcon icon={faChevronDown} className="w-4 h-4 text-gray-300" />
+                        <FaIcon icon={faChevronDown} className="w-4 h-4 text-muted-foreground" />
                       </button>
                     </div>
                   </div>
@@ -322,20 +322,20 @@ export default function SimulationSetupPage() {
               ))}
             </div>
 
-            <div className="bg-gray-800/50 rounded-lg p-3 text-sm text-gray-400 border border-gray-700/50">
-              <span className="text-gray-300 font-medium">Order preview: </span>
+            <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground border">
+              <span className="font-medium">Order preview: </span>
               {sectionOrder.map((t, i) => (
                 <span key={t}>
-                  <span className="text-white">{SECTION_LABELS[t]}</span>
+                  <span className="font-semibold">{SECTION_LABELS[t]}</span>
                   {i < sectionOrder.length - 1 && (
-                    <FaIcon icon={faArrowRight} className="mx-1 h-3 w-3 text-gray-600" />
+                    <FaIcon icon={faArrowRight} className="mx-1 h-3 w-3 text-muted-foreground" />
                   )}
                 </span>
               ))}
             </div>
 
             <Button
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-11"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11"
               onClick={() => setStep(2)}
             >
               Continue to Question Bank
@@ -349,7 +349,7 @@ export default function SimulationSetupPage() {
           <>
             <div>
               <h2 className="text-xl font-semibold text-white mb-1">Step 2 — Question Bank</h2>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 Assign a question set to each section. Sets are filtered by section type.
               </p>
             </div>
@@ -370,7 +370,7 @@ export default function SimulationSetupPage() {
                           {index + 1}
                         </div>
                         <span className="font-medium text-white">{SECTION_LABELS[type]}</span>
-                        <span className="text-xs text-gray-500 ml-auto">
+                        <span className="text-xs text-muted-foreground ml-auto">
                           Recommended: {SECTION_RECOMMENDED_QUESTIONS[type]} questions
                         </span>
                       </div>
@@ -396,19 +396,18 @@ export default function SimulationSetupPage() {
                             setSelectedSets((prev) => ({ ...prev, [type]: val }))
                           }
                         >
-                          <SelectTrigger className="bg-gray-800/60 border-gray-700 text-white">
+                          <SelectTrigger>
                             <SelectValue placeholder="Select a question set…" />
                           </SelectTrigger>
-                          <SelectContent className="bg-gray-900 border-gray-700">
+                          <SelectContent>
                             {setsForSection.map((set) => (
                               <SelectItem
                                 key={set.id}
                                 value={set.id}
-                                className="text-white focus:bg-gray-700"
                               >
                                 <div className="flex items-center gap-2">
                                   <span>{set.name}</span>
-                                  <span className="text-gray-400 text-xs">
+                                  <span className="text-muted-foreground text-xs">
                                     ({set.total_questions}q)
                                   </span>
                                 </div>
@@ -444,13 +443,13 @@ export default function SimulationSetupPage() {
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                className="flex-1 border-gray-700 text-gray-300 hover:bg-gray-800"
+                className="flex-1"
                 onClick={() => setStep(1)}
               >
                 Back
               </Button>
               <Button
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                 disabled={!allSectionsAssigned}
                 onClick={() => setStep(3)}
               >
@@ -466,43 +465,43 @@ export default function SimulationSetupPage() {
           <>
             <div>
               <h2 className="text-xl font-semibold text-white mb-1">Step 3 — Confirm &amp; Begin</h2>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 Review your exam configuration before starting.
               </p>
             </div>
 
             {/* Summary table */}
-            <Card className="border border-gray-700/60 bg-gray-900/40">
+            <Card>
               <CardContent className="p-0">
-                <div className="divide-y divide-gray-700/50">
+                <div className="divide-y">
                   {sectionOrder.map((type, index) => {
                     const set = getSelectedSet(type);
                     return (
                       <div key={type} className="flex items-center justify-between px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-gray-500 w-5">{index + 1}.</span>
+                          <span className="text-xs font-medium text-muted-foreground w-5">{index + 1}.</span>
                           <span className={`w-2 h-2 rounded-full ${
                             type === 'quant' ? 'bg-blue-400' :
                             type === 'verbal' ? 'bg-purple-400' : 'bg-emerald-400'
                           }`} />
                           <span className="text-white text-sm">{SECTION_LABELS[type]}</span>
                         </div>
-                        <div className="flex items-center gap-3 text-xs text-gray-400">
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
                           <span>{set?.total_questions ?? 0} questions</span>
-                          <span className="text-gray-600">·</span>
+                          <span>·</span>
                           <span>45 min</span>
                         </div>
                       </div>
                     );
                   })}
-                  <div className="flex items-center justify-between px-4 py-3 bg-gray-800/30">
-                    <span className="text-sm font-medium text-gray-300">Total</span>
+                  <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
+                    <span className="text-sm font-medium">Total</span>
                     <div className="flex items-center gap-3 text-xs">
-                      <span className="text-white font-medium">
+                      <span className="font-medium">
                         {sectionOrder.reduce((acc, t) => acc + (getSelectedSet(t)?.total_questions ?? 0), 0)} questions
                       </span>
-                      <span className="text-gray-600">·</span>
-                      <span className="text-gray-300">~2h 15m</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="text-muted-foreground">~2h 15m</span>
                     </div>
                   </div>
                 </div>
@@ -510,12 +509,12 @@ export default function SimulationSetupPage() {
             </Card>
 
             {/* Breaks toggle */}
-            <div className="flex items-center justify-between p-4 border border-gray-700/60 bg-gray-900/40 rounded-xl">
+            <div className="flex items-center justify-between p-4 border rounded-xl">
               <div>
                 <Label htmlFor="breaks-toggle" className="text-white font-medium cursor-pointer">
                   Optional 10-minute breaks
                 </Label>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Offered between sections 1<FaIcon icon={faArrowRight} className="mx-1 h-3 w-3 text-slate-400" />2 and 2<FaIcon icon={faArrowRight} className="mx-1 h-3 w-3 text-slate-400" />3
                 </p>
               </div>
@@ -523,7 +522,7 @@ export default function SimulationSetupPage() {
                 id="breaks-toggle"
                 checked={breaksEnabled}
                 onCheckedChange={setBreaksEnabled}
-                className="data-[state=checked]:bg-indigo-600"
+                className="data-[state=checked]:bg-blue-600"
               />
             </div>
 
@@ -538,21 +537,21 @@ export default function SimulationSetupPage() {
             )}
 
             {/* Disclaimer */}
-            <p className="text-xs text-gray-500 text-center">
+            <p className="text-xs text-muted-foreground text-center">
               This is a simulated exam. Scores are estimated based on raw accuracy and are not equivalent to official GMAT scores.
             </p>
 
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                className="flex-1 border-gray-700 text-gray-300 hover:bg-gray-800"
+                className="flex-1"
                 onClick={() => setStep(2)}
                 disabled={loading}
               >
                 Back
               </Button>
               <Button
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white h-11 font-semibold"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-11 font-semibold"
                 onClick={handleBeginExam}
                 disabled={loading || !allSectionsAssigned}
               >
