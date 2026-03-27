@@ -36,7 +36,15 @@ import {
   TrackingEventType,
   Passage,
 } from "@/types/gmat";
-import { renderTextWithTable, PassageContent, MultiSourceTabs } from "@/components/exam/DIRenderers";
+import {
+  renderTextWithTable,
+  PassageContent,
+  MultiSourceTabs,
+  TableAnalysisRenderer,
+  TwoPartRenderer,
+  GraphicsRenderer,
+  MultiSourceRenderer,
+} from "@/components/exam/DIRenderers";
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -396,6 +404,7 @@ function SectionCountdown({
 
 interface LocalQuestionState {
   selectedAnswer: string | null;
+  selectedAnswer2: string | null;
   answerChanges: AnswerChange[];
   triageTriggered: boolean;
   triageDismissed: boolean;
@@ -529,6 +538,7 @@ export default function SimulationExamPage({
       qs.forEach((_, i) => {
         initStates[i] = {
           selectedAnswer: null,
+          selectedAnswer2: null,
           answerChanges: [],
           triageTriggered: false,
           triageDismissed: false,
@@ -633,6 +643,7 @@ export default function SimulationExamPage({
             }
           : {
               selectedAnswer: null,
+              selectedAnswer2: null,
               answerChanges: [],
               triageTriggered: false,
               triageDismissed: false,
@@ -911,6 +922,16 @@ export default function SimulationExamPage({
     [currentIndex, sessionStartMs],
   );
 
+  const selectAnswer2 = useCallback(
+    (letter: string) => {
+      setQuestionStates((prev) => ({
+        ...prev,
+        [currentIndex]: { ...prev[currentIndex], selectedAnswer2: letter },
+      }));
+    },
+    [currentIndex],
+  );
+
   // ── Load grouped passages for MSR questions ───────────────
   useEffect(() => {
     const q = questions[currentIndex];
@@ -1063,8 +1084,13 @@ export default function SimulationExamPage({
     .filter((c) => c.text);
 
   const isDS = currentQ.question_type === "Data Sufficiency";
+  const isTableAnalysis = currentQ.question_type === "Table Analysis";
+  const isTwoPartAnalysis = currentQ.question_type === "Two-Part Analysis";
+  const isGraphics = currentQ.question_type === "Graphics Interpretation";
+  const isMSR = currentQ.question_type === "Multi-Source Reasoning" && groupPassages.length > 0;
   const isRC =
-    currentQ.question_type === "Reading Comprehension" || !!currentQ.passage_id;
+    currentQ.question_type === "Reading Comprehension" ||
+    (!!currentQ.passage_id && !isTableAnalysis && !isGraphics);
   // Resolve passage from the passages table (loaded during initialization)
   const currentPassage = currentQ?.passage_id
     ? passages.find((p) => p.id === currentQ.passage_id) ?? null
@@ -1156,44 +1182,58 @@ export default function SimulationExamPage({
       )}
 
       {/* ── Main Content ── */}
-      <main className={`flex-1 max-w-6xl mx-auto w-full px-4 py-6${isInSectionReview && sectionReviewQuestion === null ? " hidden" : ""}`}>
-        {isRC ? (
-          /* RC: Two-column — no passage map gate */
-          <div className="grid grid-cols-[55%_45%] gap-6 h-[calc(100vh-120px)]">
-            <div className="overflow-y-auto pr-2">
-              {currentPassage && currentPassage.passage_type !== 'text' ? (
-                <PassageContent passage={currentPassage} />
-              ) : (
-                (passageText || currentQ.stem)
-                  .split(/\n\n+/)
-                  .filter((p) => p.trim())
-                  .map((para, i) => (
-                    <div key={i} className="flex gap-3 mb-4">
-                      <span className="text-blue-400 font-bold text-sm flex-shrink-0 mt-0.5">
-                        P{i + 1}
-                      </span>
-                      <p className="text-sm leading-relaxed text-slate-200">
-                        {para}
-                      </p>
-                    </div>
-                  ))
-              )}
+      <main className={`flex-1 max-w-6xl mx-auto w-full px-4${(isRC || isMSR || isTableAnalysis || isGraphics) ? " overflow-hidden" : " py-6"}${isInSectionReview && sectionReviewQuestion === null ? " hidden" : ""}`}>
+        {(isRC || isMSR || isTableAnalysis || isGraphics) ? (
+          /* Two-column split layout for RC, MSR, Table Analysis, Graphics */
+          <div className="flex h-[calc(100vh-116px)] overflow-hidden -mx-4">
+            {/* Left: passage / sources */}
+            <div className="flex flex-col border-r border-[#1e3a8a] overflow-hidden" style={{ width: "57%" }}>
+              <div className="px-4 py-2 bg-[#1e3a8a] border-b border-[#1e3a8a] shrink-0">
+                <span className="text-white/70 text-xs font-semibold uppercase tracking-wider">
+                  {isMSR ? "Multi-Source Reasoning" : isTableAnalysis ? "Table Analysis" : isGraphics ? "Graphics Interpretation" : "Reading Comprehension"}
+                </span>
+              </div>
+              <div className={`flex-1 overflow-y-auto bg-white px-6 py-5 ${isMSR ? "flex flex-col min-h-0 p-0" : ""}`}>
+                {isMSR ? (
+                  <MultiSourceTabs passages={groupPassages} />
+                ) : currentPassage && currentPassage.passage_type !== "text" ? (
+                  <PassageContent passage={currentPassage} />
+                ) : (
+                  (passageText || currentQ.stem)
+                    .split(/\n\n+/)
+                    .filter((p) => p.trim())
+                    .map((para, i) => (
+                      <div key={i} className="flex gap-3 mb-4">
+                        <span className="text-blue-400 font-bold text-sm flex-shrink-0 mt-0.5">P{i + 1}</span>
+                        <p className="text-sm leading-relaxed text-slate-700">{para}</p>
+                      </div>
+                    ))
+                )}
+              </div>
             </div>
-            <div className="overflow-y-auto">
+            {/* Right: question panel */}
+            <div className="overflow-y-auto bg-[#0A1628] px-5 py-5" style={{ width: "43%" }}>
               <SimQuestionPanel
                 q={currentQ}
                 qs={qs}
                 choices={choices}
                 isDS={isDS}
+                isTableAnalysis={isTableAnalysis}
+                isTwoPartAnalysis={false}
+                isGraphics={isGraphics}
+                isMSR={isMSR}
+                currentPassage={currentPassage}
+                groupPassages={groupPassages}
                 showTimerRing={showTimerRing}
                 onSelect={selectAnswer}
+                onSelect2={selectAnswer2}
                 onTriageExpire={handleTriageExpire}
                 currentIndex={currentIndex}
                 totalQuestions={questions.length}
                 reviewBanner={isInSectionReview && sectionReviewQuestion !== null ? (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 flex items-center justify-between">
                     <span className="text-amber-800 text-xs font-medium">
-                      ⚠ Review Mode — Editing Q{sectionReviewQuestion + 1} · {3 - sectionReviewCount} edits remaining · Select your answer then click Confirm
+                      ⚠ Review Mode — Editing Q{sectionReviewQuestion + 1} · {3 - sectionReviewCount} edits remaining
                     </span>
                     <Button size="sm" variant="outline" className="border-amber-400 text-amber-700 text-xs h-7 ml-3 flex-shrink-0" onClick={() => setShowSectionEditConfirm(true)}>Confirm</Button>
                   </div>
@@ -1207,15 +1247,22 @@ export default function SimulationExamPage({
             qs={qs}
             choices={choices}
             isDS={isDS}
+            isTableAnalysis={false}
+            isTwoPartAnalysis={isTwoPartAnalysis}
+            isGraphics={false}
+            isMSR={false}
+            currentPassage={null}
+            groupPassages={[]}
             showTimerRing={showTimerRing}
             onSelect={selectAnswer}
+            onSelect2={selectAnswer2}
             onTriageExpire={handleTriageExpire}
             currentIndex={currentIndex}
             totalQuestions={questions.length}
             reviewBanner={isInSectionReview && sectionReviewQuestion !== null ? (
               <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 flex items-center justify-between">
                 <span className="text-amber-800 text-xs font-medium">
-                  ⚠ Review Mode — Editing Q{sectionReviewQuestion + 1} · {3 - sectionReviewCount} edits remaining · Select your answer then click Confirm
+                  ⚠ Review Mode — Editing Q{sectionReviewQuestion + 1} · {3 - sectionReviewCount} edits remaining
                 </span>
                 <Button size="sm" variant="outline" className="border-amber-400 text-amber-700 text-xs h-7 ml-3 flex-shrink-0" onClick={() => setShowSectionEditConfirm(true)}>Confirm</Button>
               </div>
@@ -1354,8 +1401,15 @@ interface SimQuestionPanelProps {
   qs: LocalQuestionState;
   choices: { letter: string; text: string }[];
   isDS: boolean;
+  isTableAnalysis: boolean;
+  isTwoPartAnalysis: boolean;
+  isGraphics: boolean;
+  isMSR: boolean;
+  currentPassage: Passage | null;
+  groupPassages: Passage[];
   showTimerRing: boolean;
   onSelect: (l: string) => void;
+  onSelect2: (l: string) => void;
   onTriageExpire: () => void;
   currentIndex: number;
   totalQuestions: number;
@@ -1367,8 +1421,15 @@ function SimQuestionPanel({
   qs,
   choices,
   isDS,
+  isTableAnalysis,
+  isTwoPartAnalysis,
+  isGraphics,
+  isMSR,
+  currentPassage,
+  groupPassages,
   showTimerRing,
   onSelect,
+  onSelect2,
   onTriageExpire,
   currentIndex,
   reviewBanner,
@@ -1376,25 +1437,16 @@ function SimQuestionPanel({
   return (
     <div className="space-y-4 max-w-3xl mx-auto text-slate-100">
       {reviewBanner}
-      {/* Question header — no flag button */}
+      {/* Question header */}
       <div className="flex items-start gap-3 justify-between">
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge
-            variant="outline"
-            className="border-blue-500/30 text-blue-400 text-xs"
-          >
+          <Badge variant="outline" className="border-blue-500/30 text-blue-400 text-xs">
             Q{currentIndex + 1}
           </Badge>
-          <Badge
-            variant="outline"
-            className="border-slate-600 text-slate-400 text-xs"
-          >
+          <Badge variant="outline" className="border-slate-600 text-slate-400 text-xs">
             {q.difficulty}
           </Badge>
-          <Badge
-            variant="outline"
-            className="border-purple-500/30 text-purple-400 text-xs"
-          >
+          <Badge variant="outline" className="border-purple-500/30 text-purple-400 text-xs">
             {q.topic || q.question_type}
           </Badge>
         </div>
@@ -1414,55 +1466,84 @@ function SimQuestionPanel({
             <p className="text-base leading-relaxed text-slate-100">{q.stem}</p>
             {q.statement1 && (
               <div className="pl-4 border-l-2 border-blue-500/40">
-                <span className="text-blue-400 font-semibold text-sm">
-                  (1){" "}
-                </span>
+                <span className="text-blue-400 font-semibold text-sm">(1) </span>
                 <span className="text-sm leading-relaxed text-slate-200">{q.statement1}</span>
               </div>
             )}
             {q.statement2 && (
               <div className="pl-4 border-l-2 border-blue-500/40">
-                <span className="text-blue-400 font-semibold text-sm">
-                  (2){" "}
-                </span>
+                <span className="text-blue-400 font-semibold text-sm">(2) </span>
                 <span className="text-sm leading-relaxed text-slate-200">{q.statement2}</span>
               </div>
             )}
           </div>
         ) : (
-          renderTextWithTable(q.stem)
+          <div className="text-slate-100">{renderTextWithTable(q.stem)}</div>
         )}
       </div>
 
-      {/* Answer choices */}
-      <div className="space-y-2">
-        {choices.map(({ letter, text }) => {
-          const isSelected = qs?.selectedAnswer === letter;
-          return (
-            <button
-              key={letter}
-              onClick={() => onSelect(letter)}
-              className={`w-full text-left p-4 rounded-xl border transition-all duration-150 flex items-start gap-3 group ${
-                isSelected
-                  ? "border-blue-500 bg-blue-500/15 shadow-lg shadow-blue-500/10"
-                  : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600 hover:bg-slate-800/50"
-              }`}
-            >
-              <span
-                className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5 transition-colors ${
+      {/* Answer choices — DI-type-aware */}
+      {isTableAnalysis && currentPassage ? (
+        <TableAnalysisRenderer
+          passage={currentPassage}
+          question={q}
+          selectedAnswer={qs?.selectedAnswer ?? null}
+          onSelect={onSelect}
+          hideSources
+        />
+      ) : isTwoPartAnalysis ? (
+        <TwoPartRenderer
+          question={q}
+          selectedAnswer={qs?.selectedAnswer ?? null}
+          selectedAnswer2={qs?.selectedAnswer2 ?? null}
+          onSelect={onSelect}
+          onSelect2={onSelect2}
+        />
+      ) : isMSR && groupPassages.length > 0 ? (
+        <MultiSourceRenderer
+          passages={groupPassages}
+          question={q}
+          selectedAnswer={qs?.selectedAnswer ?? null}
+          onSelect={onSelect}
+          hideSources
+        />
+      ) : isGraphics && currentPassage ? (
+        <GraphicsRenderer
+          passage={currentPassage}
+          question={q}
+          selectedAnswer={qs?.selectedAnswer ?? null}
+          onSelect={onSelect}
+          hideSources
+        />
+      ) : (
+        <div className="space-y-2">
+          {choices.map(({ letter, text }) => {
+            const isSelected = qs?.selectedAnswer === letter;
+            return (
+              <button
+                key={letter}
+                onClick={() => onSelect(letter)}
+                className={`w-full text-left p-4 rounded-xl border transition-all duration-150 flex items-start gap-3 group ${
                   isSelected
-                    ? "bg-blue-500 text-white"
-                    : "bg-slate-700 text-slate-400 group-hover:bg-slate-600"
+                    ? "border-blue-500 bg-blue-500/15 shadow-lg shadow-blue-500/10"
+                    : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600 hover:bg-slate-800/50"
                 }`}
               >
-                {letter}
-              </span>
-              <span className="text-sm leading-relaxed pt-0.5 text-slate-100">{text}</span>
-            </button>
-          );
-        })}
-      </div>
-      {/* No confidence rating in simulation mode */}
+                <span
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5 transition-colors ${
+                    isSelected
+                      ? "bg-blue-500 text-white"
+                      : "bg-slate-700 text-slate-400 group-hover:bg-slate-600"
+                  }`}
+                >
+                  {letter}
+                </span>
+                <span className="text-sm leading-relaxed pt-0.5 text-slate-100">{text}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
